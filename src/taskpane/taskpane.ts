@@ -7,6 +7,8 @@
 
 var tbl:Excel.Table;
 var sheet:Excel.Worksheet;
+var tblRange:Excel.Range;
+
 
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
@@ -27,12 +29,14 @@ async function CreateTable(context) {
     
     // Create a table from the selected range
     tbl = sheet.tables.getItemOrNullObject("CDL");
+    tblRange = tbl.getRange();
     await context.sync();
     if (tbl.isNullObject) {
       let tbl = sheet.tables.add(range, true /* hasHeaders */); 
       tbl.name = "CDL"; 
       tbl.style = "TableStyleLight10";
       tbl.load('tableStyle');
+      tblRange = tbl.getRange();
       await context.sync();
     }
     
@@ -314,6 +318,9 @@ export async function run() {
 
       await context.sync();
       console.log(`Processing done.`);
+
+      await PerformAnalysis(context);
+      console.log(`Processing done.`);
       
       addStatus("Done!");
     });
@@ -321,3 +328,30 @@ export async function run() {
     console.error(error);
   }
 }
+async function PerformAnalysis(context) {
+  await CheckNumberOfRows(context);
+  await context.sync();
+}
+
+async function CheckNumberOfRows(context: any) {
+  tblRange.load(["rowCount"]);
+  await context.sync();
+  
+  if (tblRange.rowCount >= 950) {
+    AddMessage("Number of rows is very close to the Diag Limit of 1000Rows returned($tblRange.rowCount)");
+  }   
+  await context.sync();
+}
+
+function AddMessage(message: string) {
+
+  const ul = document.getElementById("message");
+  
+  const li = document.createElement("li");
+  li.classList.add("ms-ListItem", "ms-font-m");
+  li.textContent = message;
+
+  ul.appendChild(li);
+
+}
+
