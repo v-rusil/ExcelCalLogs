@@ -26,12 +26,17 @@
     "watch": "webpack --mode development --watch"
   },
   "dependencies": {
+    "@types/bootstrap": "^5.2.6",
+    "bootstrap": "^5.2.3",
     "core-js": "^3.9.1",
+    "jquery": "^3.6.4",
+    "materialize-css": "^1.0.0-rc.2",
     "regenerator-runtime": "^0.13.7"
   },
   "devDependencies": {
     "@babel/core": "^7.13.10",
     "@babel/preset-typescript": "^7.13.0",
+    "@types/jquery": "^3.5.16",
     "@types/office-js": "^1.0.318",
     "@types/office-runtime": "^1.0.23",
     "acorn": "^8.5.0",

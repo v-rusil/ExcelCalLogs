@@ -14,48 +14,95 @@
     <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
 
     <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
-    <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css"/>
+    <!-- <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css"/> -->
+
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- jQuery and Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+        integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj"
+        crossorigin="anonymous"></script>
 
     <!-- Template styles -->
     <link href="taskpane.css" rel="stylesheet" type="text/css" />
 </head>
 
-<body class="ms-font-m ms-welcome ms-Fabric">
-    <header class="ms-welcome__header ms-bgColor-neutralLighter">
-        <!-- <img width="90" height="90" src="../../assets/logo-filled.png" alt="Contoso" title="Contoso" /> -->
-        <h1 class="ms-font-su">CDL Formatter</h1>
-        <h2 class="ms-font-xs">POC version</h2>
-    </header>
-    <section id="sideload-msg" class="ms-welcome__main">
-        <h2 class="ms-font-xl">Please sideload your add-in to see app body.</h2>
-    </section>
-    <main id="app-body" class="ms-welcome__main" style="display: none;">
-        <h2 class="ms-font-xl"> This is pre Beta CDL Logs Formatter </h2>
-        <ul class="ms-List ms-welcome__features" id="status">
-            <!-- Dynamic list of actions goes here -->
-        </ul>
-        <ul class="ms-List ms-welcome__features" id="message">
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Ribbon ms-font-xl"></i>
-                <span class="ms-font-m">Inspect and visual format CDLLogs </span>
-            </li>
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Unlock ms-font-xl"></i>
-                <span class="ms-font-m">Video training on usage:</span>
-            </li>
-            <li class="ms-ListItem">
-                <i class="ms-Icon ms-Icon--Design ms-font-xl"></i>
-                <span class="ms-font-m">formatter by rusilva@microsoft.com</span>
-            </li>
-        </ul>
-        <p class="ms-font-l">Get the CDLLogs into A1 Cell, then click <b>Run</b>.</p>
-        <div role="button" id="run" class="ms-welcome__action ms-Button ms-Button--hero ms-font-xl">
-            <span class="ms-Button-label">Run</span>
+<body class="bg-dark">
+ 
+    <div class="bg-light rounded p-3 card">
+        <div class="card-header">
+            CDL Check provides compreehensive formatting of CDL logs as well as basic troubleshooting help
         </div>
-        <!-- <div role="textbox" class="ms-textbox">
-            <input type="text" id="status">
-        </div> -->
-    </main>
+        <div class="card-body">
+            <form>
+                <div class="form-group" id="sideload-msg">
+                    <H2>officeJS is not loaded, Addin will not run!</H2>
+                </div>
+
+                <div class="form-group">
+                    <!-- Spacer     -->
+                </div>
+
+                <div class="form-group">
+                    <label for="typeCDL">Choose Type of CDL Log</label>
+                    <select class="form-control" id="typeCDL">
+                        <option value="rave-diag-log">RAVE Diag Log (Default)</option>
+                        <option value="raw-cdl">RAW CDL from Get-CalendarDiagnosticObjects</option>
+                        <option value="onprem-exchange-cdl">ONPrem Exchange CDL (future development)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group form-check">
+                <input type="checkbox" class="form-check-input" id="isOrganizer">
+                <label class="form-check-label" for="isOrganizer">This is an Organizer CDL</label>
+                </div>
+                <div class="form-group form-check">
+                    <input type="checkbox" class="form-check-input" id="warn1KRows">
+                    <label class="form-check-label" for="warn1KRows">Warn if Rows are close to 1K</label>
+                </div>
+        
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" id="run">Run CDL Checks</button>
+                    <div class="spinner-border text-primary invisible" role="status" id="spinner">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <p class="mb-1 small" id="statusMessage">Status Message</p>
+                </div>
+                <div class="list-group" id="analysisInfo">
+                    <!-- Template of data to be shown on analysisInfo -->
+                    <!-- <a href="#" class="list-group-item list-group-item-action list-group-item-warning">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">Row limit</h5>
+                            <span class="badge badge-primary badge-pill">1002</span>
+                        </div>
+                        <p class="mb-1">If rows returned are close to 1K, this can be a limitation of Rave diagnostics and could mean dataset returned is not complete. To avoid this, ask for raw CDL to the customer, and format directly with the option RAW</p>
+                        <small>Get-CalendarDiagnosticObjects</small>
+                    </a> -->
+                </div>
+            </form>
+        </div>
+        <div class="card-footer">
+            <small>Exchange Calendaring team</small>
+        </div>
+
+        <div class="container invisible">
+            <div class="card-header">
+                testing multimedia
+            </div>
+            <div class="card-body ">
+                <div class="embed-responsive embed-responsive-21by9">
+                    <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
+                        title="YouTube video player" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

@@ -10,7 +10,9 @@
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://www.contoso.com/help"/>
   <AppDomains>
-    <AppDomain>https://www.contoso.com</AppDomain>
+    <AppDomain>https://msit.microsoftstream.com/video</AppDomain>
+    <AppDomain>https://www.youtube.com</AppDomain>
+    <AppDomain>https://login.microsoftonline.com</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Workbook"/>
@@ -72,9 +74,9 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Get started with your sample add-in!"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Get started with CalLogs!"/>
         <bt:String id="CommandsGroup.Label" DefaultValue="Commands Group"/>
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Show Taskpane"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Format CallLogs..."/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded succesfully. Go to the HOME tab and click the 'Show Taskpane' button to get started."/>

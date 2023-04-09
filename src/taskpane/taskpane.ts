@@ -5,64 +5,269 @@
 
 /* global console, document, Excel, Office */
 
+var ctx:Excel.RequestContext
+
 var tbl:Excel.Table;
 var sheet:Excel.Worksheet;
 var tblRange:Excel.Range;
 
 
+//#region JSON properties of Callog
+var RAVECDLLOG:string = `
+  [  
+    {    
+      "columnName": "ModifiedDate",   
+      "isMandatory": "true", 
+      "horizontalAlignment": "Center",    
+      "verticalAlignment": "Bottom",    
+      "columnWidth": 180,    
+      "indentLevel": 1,    
+      "style": "Neutral",
+      "numberFormat": "MM/dd/yyyy HH:mm:ss"  
+    },  
+    {    
+      "columnName": "Age",  
+      "isMandatory": "false",  
+      "horizontalAlignment": "center",    
+      "verticalAlignment": "middle",    
+      "columnWidth": 80,    
+      "indentLevel": 1,    
+      "style": "italic",  
+      "numberFormat": "MM/dd/yyyy HH:mm:ss"  
+    }
+  ]`
+
+//#endregion
+
+
+//#region Properties
+var _totalTblRows: number = -1;
+async function totalTblRows(): Promise<number>
+{
+  if (_totalTblRows <= 0) {
+    tblRange.load(["rowCount"]);
+    await ctx.sync();
+    
+    _totalTblRows = tblRange.rowCount;
+      
+  }
+  return _totalTblRows;
+}
+
+// dropdown Type of CDL log
+function typeCDL(): string {
+  const selectElement = document.getElementById('typeCDL') as HTMLSelectElement;
+  return selectElement.value;
+}
+
+// Organizer table styles and checkbox
+var organizerTableStyle:string = "TableStyleLight10";
+var attendeeTableStyle:string = "TableStyleLight13";
+async function isOrganizer():Promise<boolean>
+{
+  const checkbox = document.getElementById("isOrganizer") as HTMLInputElement;
+  return checkbox.checked;
+}
+
+
+async function warn1KRows():Promise<boolean>
+{
+  const checkbox = document.getElementById("warn1KRows") as HTMLInputElement;
+  return checkbox.checked;
+}
+
+//#endregion
+
+//#region Helper methods
+async function showSpinner(show:boolean)
+{
+  var element = document.getElementById("spinner");
+  if (show) {
+    element.classList.remove("invisible");
+  } else {
+    element.classList.add("invisible");
+  }
+}
+
+function AddMessage(message: string) {
+  const p = document.getElementById("statusMessage");
+  p.textContent = message;
+}
+
+enum enumTypeAnalysis
+{
+  Warning, 
+  Action, 
+  Danger, 
+  Success
+}
+async function addAnalysisInfo(title:string, badge:number, message:string, smallfooter:string, typeanalysis:enumTypeAnalysis)
+{
+  // <a href="#" class="list-group-item list-group-item-action list-group-item-warning">
+  //    <div class="d-flex w-100 justify-content-between">
+  //      <h5 class="mb-1">Row limit</h5>
+  //      <span class="badge badge-primary badge-pill">1002</span>
+  //    </div>
+  //    <p class="mb-1">If rows returned are close to 1K</p>
+  //    <small>Get-CalendarDiagnosticObjects</small>
+  // </a>
+    const analysisDiv = document.getElementById("analysisInfo");
+  
+    // Create the <a> element with the appropriate class based on the enum value
+    const aElement = document.createElement("a");
+    switch (typeanalysis) {
+      case enumTypeAnalysis.Warning:
+        aElement.classList.add("list-group-item", "list-group-item-action", "list-group-item-warning");
+        break;
+      case enumTypeAnalysis.Action:
+        aElement.classList.add("list-group-item", "list-group-item-action");
+        break;
+      case enumTypeAnalysis.Danger:
+        aElement.classList.add("list-group-item", "list-group-item-action", "list-group-item-danger");
+        break;
+      case enumTypeAnalysis.Success:
+        aElement.classList.add("list-group-item", "list-group-item-action", "list-group-item-success");
+        break;
+    }
+  
+    // Create the <div> element with the appropriate classes and contents
+    const divElement = document.createElement("div");
+    divElement.classList.add("d-flex", "w-100", "justify-content-between");
+    const h5Element = document.createElement("h5");
+    h5Element.classList.add("mb-1");
+    h5Element.innerText = title;
+    const spanElement = document.createElement("span");
+    spanElement.classList.add("badge", "badge-primary", "badge-pill");
+    if (badge == 0) {
+      spanElement.classList.add("invisible");
+    }
+    spanElement.innerText = badge.toString();
+    divElement.appendChild(h5Element);
+    divElement.appendChild(spanElement);
+  
+    // Create the <p> element with the message
+    const pElement = document.createElement("p");
+    pElement.classList.add("mb-1");
+    pElement.innerText = message;
+  
+    // Create the <small> element with the footer text
+    const smallElement = document.createElement("small");
+    smallElement.innerText = smallfooter;
+  
+    // Add the child elements to the <a> element
+    aElement.appendChild(divElement);
+    aElement.appendChild(pElement);
+    aElement.appendChild(smallElement);
+  
+    // Add the <a> element to the analysis div
+    analysisDiv.appendChild(aElement);
+  
+  }
+
+  async function resetAnalysisInfo()
+  {
+    const analysisInfoDiv = document.getElementById('analysisInfo');
+    analysisInfoDiv.innerHTML = '';
+  }
+//#endregion
+
+
+
+//#region Init OfficeJS
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
     document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "flex";
+    // document.getElementById("app-body").style.display = "flex";
     document.getElementById("run").onclick = run;
+    resetAnalysisInfo();
   }
 });
 
+async function ClearAllTables() {
+  try {
+    await Excel.run(async (context) => {
+      
+      // Get all the tables in the worksheet
+      const tables = sheet.tables;
 
+      // Load the items property of the tables object
+      tables.load("items");
+
+      // Synchronize the document state by executing the queued commands
+      await context.sync();
+
+      // Loop through each table and remove its formatting
+      tables.items.forEach((table) => {
+        table.getRange().clear("Formats");
+      });
+
+      // Synchronize the document state by executing the queued commands
+      await context.sync();
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+//#endregion
 
 async function CreateTable(context) {
   try {
-    
+
+    await ClearAllTables();
+
+    const _isOrganizer = await isOrganizer();
+
     // Define the range of cells you want to select
     const range = sheet.getUsedRange();
     range.load("address");
     
     // Create a table from the selected range
-    tbl = sheet.tables.getItemOrNullObject("CDL");
-    tblRange = tbl.getRange();
+    let tbl = sheet.tables.getItemOrNullObject("CDL");
+    let tblRange = tbl.getRange();
     await context.sync();
+
     if (tbl.isNullObject) {
-      let tbl = sheet.tables.add(range, true /* hasHeaders */); 
+      tbl = sheet.tables.add(range, true /* hasHeaders */); 
       tbl.name = "CDL"; 
-      tbl.style = "TableStyleLight10";
-      tbl.load('tableStyle');
-      tblRange = tbl.getRange();
+      tblRange=tbl.getRange();
       await context.sync();
     }
+    if (_isOrganizer) {
+      tbl.style = organizerTableStyle;  
+    }
+    else{
+      tbl.style = attendeeTableStyle;  
+    }
     
-    
-    // Update table style 
-    //Possible values are: "TableStyleLight1" through "TableStyleLight21", "TableStyleMedium1" 
-    //through "TableStyleMedium28", "TableStyleDark1" through "TableStyleDark11"
-    tbl.style = "TableStyleLight10";
     tbl.load('tableStyle');
+    tbl.columns.load();
+    tblRange = tbl.getRange();
+
     await context.sync();
+    
+    // // Update table style 
+    // //Possible values are: "TableStyleLight1" through "TableStyleLight21", "TableStyleMedium1" 
+    // //through "TableStyleMedium28", "TableStyleDark1" through "TableStyleDark11"
+    // tbl.style = "TableStyleLight10";
+    // tbl.load('tableStyle');
+    // await context.sync();
     
   } catch (error) {
     console.error(error);
+    AddMessage(error);
   }
 }
 
 async function FormatCells(context) 
  {
-  // Get a reference to the active worksheet
-  const sheet = context.workbook.worksheets.getActiveWorksheet();
+  // // Get a reference to the active worksheet
+  // const sheet = context.workbook.worksheets.getActiveWorksheet();
   
   // Format cells
   const columnsA = sheet.getRange("A:A");
   columnsA.format.horizontalAlignment = "Center";
   columnsA.format.verticalAlignment = "Bottom";
-  columnsA.columnWidth = 6;
+  columnsA.format.columnWidth = 6;
   columnsA.format.autofitColumns();
   
   const columnsEF = sheet.getRange("E:F");
@@ -70,17 +275,17 @@ async function FormatCells(context)
   columnsEF.format.indentLevel = 1;
 
   const columnC = sheet.getRange("C:C");
-  columnC.columnWidth = 8;
+  columnC.format.columnWidth = 8;
   const columnE = sheet.getRange("E:E");
-  columnE.columnWidth = 18;
+  columnE.format.columnWidth = 18;
   const columnG = sheet.getRange("G:G");
   columnG.format.autofitColumns();
-  columnG.columnWidth = 25;
+  columnG.format.columnWidth = 25;
 
-  const columnsHI = sheet.getRange("H:I");
+  const columnsHI:Excel.Range = sheet.getRange("H:I");
   columnsHI.format.horizontalAlignment = "Center";
   columnsHI.format.verticalAlignment = "Bottom";
-  columnsHI.columnWidth = 6;
+  columnsHI.format.columnWidth = 6;
 
   const columnsKM:Excel.Range = sheet.getRange("K:M");
   columnsKM.format.indentLevel = 1;
@@ -94,22 +299,22 @@ async function FormatCells(context)
   // filterRange.autoFilter(1, "TRUE");
 
   const columnQ = sheet.getRange("Q:Q");
-  columnQ.columnWidth = 11.67;
+  columnQ.format.columnWidth = 11.67;
   
   const columnN = sheet.getRange("N:N");
   columnN.format.horizontalAlignment = "Center";
   columnN.format.verticalAlignment = "Bottom";
-  columnN.columnWidth = 10;
+  columnN.format.columnWidth = 10;
   
   // const filterRange2 = table.getOffsetRange(1, 24).getIntersection(table.getUsedRange());
   // filterRange2.autoFilter(1, "ForwardedAppointment");
 
   const columnY = sheet.getRange("Y:Y");
   columnY.style = "Neutral";
-  columnY.columnWidth = 10.56;
+  columnY.format.columnWidth = 10.56;
   const columnW = sheet.getRange("W:W");
   columnW.format.indentLevel = 1;
-  columnW.columnWidth = 11.22;
+  columnW.format.columnWidth = 11.22;
 
   await context.sync();
   // Done
@@ -121,7 +326,10 @@ async function FilterIgnorable(context) {
   // let CDLTable = sheet.tables.getItem("CDL");
 
     // Queue a command to apply a filter on the Category column.
+    tbl.columns.load();
+    await context.sync();
     let ignorableFilter = tbl.columns.getItemOrNullObject("Ignorable").filter;
+    await context.sync();
     ignorableFilter.apply({
       filterOn: Excel.FilterOn.values,
       values: ["FALSE"]
@@ -192,6 +400,7 @@ async function HighlightApptSequence(context){
     const col = tbl.columns.getItemOrNullObject("ApptSequence");
     
     const range = col.getDataBodyRange();
+    await ctx.sync();
     const conditionalFormat = range.conditionalFormats
         .add(Excel.ConditionalFormatType.colorScale);
     const criteria = {
@@ -273,21 +482,112 @@ async function HighLightCreates(context){
 }
 
 
-//#region Status Update (HTML)
-function addStatus(action) {
-  const ul = document.createElement("ul");
-  ul.classList.add("ms-List", "ms-welcome__status");
+async function validateCDLStructure(jsonString: string): Promise<boolean> {
+  try {
+    var jsonArray = JSON.parse(jsonString);
 
-  const li = document.createElement("li");
-  li.classList.add("ms-ListItem", "ms-font-m");
-  li.textContent = action;
+    if (!Array.isArray(jsonArray)) {
+      throw new Error("Input JSON is not an array.");
+    }
 
-  ul.appendChild(li);
+    tbl.columns.load();
+    await ctx.sync();
 
-  const main = document.getElementById("app-body");
-  main.appendChild(ul);
+    for (const element of jsonArray) 
+    {
+      var tblCol:Excel.TableColumn;
+      var tblColRange:Excel.Range;
+      if (element.columnName !== undefined && element.columnName !== "") {
+        tblCol = tbl.columns.getItemOrNullObject(element.columnName);
+        tblColRange = tblCol.getRange();
+        await ctx.sync();
+
+        if (tblCol.isNullObject) 
+        {
+          if (element.isMandatory !== undefined && element.isMandatory !== "" && element.isMandatory == "false") {
+            console.log(`isMandatory: ${element.isMandatory}`);
+            continue;
+          }
+          console.log(`Column Name does not exist: ${element.columnName}`);
+          addAnalysisInfo("columnName",0,`Column Name does not exist: ${element.columnName}`, "ValidateJSONStruct", enumTypeAnalysis.Danger);
+          return false;
+        }
+        else
+        {
+          console.log(`Column Name: ${element.columnName}`);
+
+          if (element.horizontalAlignment !== undefined && element.horizontalAlignment !== "") {
+            console.log(`Horizontal Alignment: ${element.horizontalAlignment}`);
+            tblColRange.format.horizontalAlignment = element.horizontalAlignment;await ctx.sync();
+            await ctx.sync();
+          }
+    
+          if (element.verticalAlignment !== undefined && element.verticalAlignment !== "") {
+            console.log(`Vertical Alignment: ${element.verticalAlignment}`);
+            tblColRange.format.verticalAlignment = element.verticalAlignment;
+            await ctx.sync();
+          }
+    
+          if (element.columnWidth !== undefined && element.columnWidth !== null) {
+            console.log(`Column Width: ${element.columnWidth}`);
+            tblColRange.format.columnWidth = element.columnWidth;
+            await ctx.sync();
+          }
+    
+          if (element.identLevel !== undefined && element.identLevel !== null) {
+            console.log(`Ident Level: ${element.indentLevel}`);
+            tblColRange.format.indentLevel = element.indentLevel;
+            await ctx.sync();
+          }
+    
+          if (element.style !== undefined && element.style !== "") {
+            console.log(`Style: ${element.style}`);
+            tblColRange.style = element.style;
+            await ctx.sync();
+          }
+
+          if (element.numberFormat !== undefined && element.numberFormat !== "") {
+            console.log(`Style: ${element.numberFormat}`);
+            tblColRange.numberFormat = element.numberFormat;
+            await ctx.sync();
+          }
+
+          await ctx.sync();
+              
+        }
+        
+      }
+    }
+
+    return true;
+
+  } catch (error) {
+    addAnalysisInfo("columnName",0,`Error traversing JSON array: ${error}`, "ValidateJSONStruct", enumTypeAnalysis.Danger);
+    console.error(`Error traversing JSON array: ${error}`);
+    return false;
+  }
 }
-//#endregion
+
+
+async function PerformAnalysis(context) {
+  await resetAnalysisInfo();
+  await CheckNumberOfRows(context);
+  await context.sync();
+}
+
+async function CheckNumberOfRows(context: any) {
+  
+  if (!CheckNumberOfRows) return; 
+
+  const rowCount = await totalTblRows();
+  
+  if (rowCount >= 950) {
+    addAnalysisInfo("Row count number", rowCount, "Number of rows is very close(or above) the Diag Limit of 1000Rows", "CheckNumberOfRows", enumTypeAnalysis.Warning);
+    AddMessage("Number of rows is very close to the Diag Limit of 1000Rows returned($tblRange.rowCount)");
+  }   
+  await context.sync();
+}
+
 
 
 //Main Function
@@ -297,61 +597,56 @@ export async function run() {
       /**
        * Insert your Excel code here
        */
-      addStatus("Starting Processing");
+      
+      await showSpinner(true);
+      await resetAnalysisInfo();
+      await AddMessage("Starting Processing");
+      
+
+      ctx = context;
       sheet = context.workbook.worksheets.getActiveWorksheet();
-      
+      tbl = sheet.tables.getItemOrNullObject("CDL");
+      tblRange = tbl.getRange();
+
+      await context.sync() ;
+
+      var isTableValid:boolean = await validateCDLStructure(RAVECDLLOG);
+      if (!isTableValid) {
+        addAnalysisInfo("CDL Invalid", 0, "CDL Structure is invalid (check previous exceptions)", "CDLInvalid", enumTypeAnalysis.Danger);
+        showSpinner(false);
+        return;
+      }
+
+      await CreateTable(context).then(()=>{AddMessage("Create Table Done")});
+      await FormatCells(context).then(()=>{AddMessage("Format cells Done")});
+      await HighlighIgnorable(context).then(()=>{AddMessage("Highlight Ignorable Done")});
+      await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
+      await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
+      await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
+      await FormatRawFrom(context).then(()=>{AddMessage("Format raw from Done")});
+
+      //await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
+      await FormatDateColumn(context, "StartTime").then(()=>{AddMessage("Create StartTime Done")}); //StartTime
+      await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
+
+      await FilterIgnorable(context).then(()=>{AddMessage("Filter Ignorable Done")});
+
       await context.sync();
       
-      await CreateTable(context);
-      await FormatCells(context);
-      await HighlighIgnorable(context);
-      await HighlightApptSequence(context);
-      await HighlightCRA(context);
-      await HighLightCreates(context);
-      await FormatRawFrom(context);
-
-      await FormatDateColumn(context, "ModifiedDate"); //ModifiedDate
-      await FormatDateColumn(context, "StartTime"); //StartTime
-      await FormatDateColumn(context, "EndTime"); //EndTime
-
-      await FilterIgnorable(context);
-
-      await context.sync();
-      console.log(`Processing done.`);
-
-      await PerformAnalysis(context);
+      await PerformAnalysis(context).then(()=>{AddMessage("Perform Analysis Done")});
       console.log(`Processing done.`);
       
-      addStatus("Done!");
+      AddMessage("Done!");
+      showSpinner(false);
+      
+      const urlCDLVideo:string = "https://msit.microsoftstream.com/video/4221a4ff-0400-9fb2-4805-f1eb0f28f09b";
+      addAnalysisInfo("Success", 0,`Process executed successfully, check the video on CDL analysis ${urlCDLVideo} `, "success", enumTypeAnalysis.Success)
     });
   } catch (error) {
+    showSpinner(false);
     console.error(error);
+    AddMessage(error);
   }
 }
-async function PerformAnalysis(context) {
-  await CheckNumberOfRows(context);
-  await context.sync();
-}
 
-async function CheckNumberOfRows(context: any) {
-  tblRange.load(["rowCount"]);
-  await context.sync();
-  
-  if (tblRange.rowCount >= 950) {
-    AddMessage("Number of rows is very close to the Diag Limit of 1000Rows returned($tblRange.rowCount)");
-  }   
-  await context.sync();
-}
-
-function AddMessage(message: string) {
-
-  const ul = document.getElementById("message");
-  
-  const li = document.createElement("li");
-  li.classList.add("ms-ListItem", "ms-font-m");
-  li.textContent = message;
-
-  ul.appendChild(li);
-
-}
 

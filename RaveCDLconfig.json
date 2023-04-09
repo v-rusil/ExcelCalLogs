@@ -1,0 +1,22 @@
+[  
+    {    
+      "columnName": "ModifiedDate",   
+      "isMandatory": "true", 
+      "horizontalAlignment": "Center",    
+      "verticalAlignment": "Bottom",    
+      "columnWidth": 180,    
+      "indentLevel": 1,    
+      "style": "Neutral",
+      "numberFormat": "MM/dd/yyyy HH:mm:ss"  
+    },  
+    {    
+      "columnName": "Age",  
+      "isMandatory": "false",  
+      "horizontalAlignment": "center",    
+      "verticalAlignment": "middle",    
+      "columnWidth": 80,    
+      "indentLevel": 1,    
+      "style": "italic",  
+      "numberFormat": "MM/dd/yyyy HH:mm:ss"  
+    }
+  ]

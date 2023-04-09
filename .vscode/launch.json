@@ -12,7 +12,8 @@
       "timeout": 600000,
       "webRoot": "${workspaceRoot}",
       "preLaunchTask": "Debug: Excel Desktop",
-      "postDebugTask": "Stop Debug"
+      "postDebugTask": "Stop Debug",
+      "skipFiles": ["**/excel-win32*.js"]
     },
     {
       "name": "Excel Desktop (Edge Legacy)",
