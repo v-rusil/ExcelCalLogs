@@ -30,6 +30,10 @@ module.exports = async (env, options) => {
     module: {
       rules: [
         {
+          test: /\.json$/,
+          use: 'json-loader',
+        },
+        {
           test: /\.ts$/,
           exclude: /node_modules/,
           use: {
@@ -59,6 +63,11 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new CopyWebpackPlugin({
+        patterns: [
+          { from: 'src/RaveCDLconfig.json', to: 'RaveCDLconfig.json' },
+        ],
+      }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",

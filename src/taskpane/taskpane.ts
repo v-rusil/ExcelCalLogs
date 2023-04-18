@@ -4,7 +4,7 @@
  */
 
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
-import { JsonConfigUtils } from "./jsonConfigUtils";
+import { JsonConfigUtils } from './jsonConfigUtils';
 
 /* global console, document, Excel, Office */
 
@@ -13,10 +13,11 @@ var ctx:Excel.RequestContext
 var tbl:Excel.Table;
 var sheet:Excel.Worksheet;
 var tblRange:Excel.Range;
+var jsonConfigUtils:JsonConfigUtils;
 
 
 //#region JSON properties of Callog
-var RAVECDLLOG:string = `
+var jsonLog:string = `
   [  
     {    
       "columnName": "ModifiedDate",   
@@ -519,14 +520,39 @@ async function HighLightCreates(context):Promise<number>
 }
 
 
-async function validateCDLStructure(jsonString: string): Promise<boolean> {
+
+function isJSONString(str: any): boolean {
   try {
-    var jsonArray = JSON.parse(jsonString);
-
-    if (!Array.isArray(jsonArray)) {
-      throw new Error("Input JSON is not an array.");
+    const jsonObj = JSON.parse(str);
+    return typeof jsonObj === "object" && jsonObj !== null;
+  } catch (e) {
+    return false;
+  }
+}
+async function validateCDLStructure(json: any): Promise<boolean> {
+  
+  var jsonArray;
+  
+  if (typeof json === "string") {
+    if (!isJSONString(json)) {
+      throw new Error("Invalid JSON string");
     }
+    jsonArray = JSON.parse(json);
+  } else if (typeof json === "object") {
+    jsonArray = json;
+  } else {
+    throw new Error("Parameter must be a string or an object");
+  }
+  
+  if (!Array.isArray(jsonArray)) 
+  {
+        throw new Error("Input JSON is not an array.");
+  }
 
+  try {
+    // var jsonArray = JSON.parse(jsonString);
+
+    
     tbl.columns.load();
     await ctx.sync();
 
@@ -555,13 +581,13 @@ async function validateCDLStructure(jsonString: string): Promise<boolean> {
 
           if (element.horizontalAlignment !== undefined && element.horizontalAlignment !== "") {
             console.log(`Horizontal Alignment: ${element.horizontalAlignment}`);
-            tblColRange.format.horizontalAlignment = element.horizontalAlignment;await ctx.sync();
+            tblColRange.format.horizontalAlignment = jsonConfigUtils.convertToHorizontalAlignment(element.horizontalAlignment);
             await ctx.sync();
           }
     
           if (element.verticalAlignment !== undefined && element.verticalAlignment !== "") {
             console.log(`Vertical Alignment: ${element.verticalAlignment}`);
-            tblColRange.format.verticalAlignment = element.verticalAlignment;
+            tblColRange.format.verticalAlignment = jsonConfigUtils.convertToVerticalAlignment(element.verticalAlignment);
             await ctx.sync();
           }
     
@@ -571,7 +597,7 @@ async function validateCDLStructure(jsonString: string): Promise<boolean> {
             await ctx.sync();
           }
     
-          if (element.identLevel !== undefined && element.identLevel !== null) {
+          if (element.indentLevel !== undefined && element.indentLevel !== null) {
             console.log(`Ident Level: ${element.indentLevel}`);
             tblColRange.format.indentLevel = element.indentLevel;
             await ctx.sync();
@@ -586,6 +612,18 @@ async function validateCDLStructure(jsonString: string): Promise<boolean> {
           if (element.numberFormat !== undefined && element.numberFormat !== "") {
             console.log(`Style: ${element.numberFormat}`);
             tblColRange.numberFormat = element.numberFormat;
+            await ctx.sync();
+          }
+
+          if (element.visible !== undefined && element.visible !== null) {
+            console.log(`Visible: ${element.visible}`);
+            if (!element.visible)  tblColRange.columnHidden = true;
+            await ctx.sync();
+          }
+
+          if (element.autosizeColumn !== undefined && element.autosizeColumn !== null) {
+            console.log(`autosizeColumn: ${element.autosizeColumn}`);
+            if (element.autosizeColumn==="true")  tblColRange.format.autofitColumns();
             await ctx.sync();
           }
 
@@ -726,7 +764,7 @@ async function getJsonData(): Promise<any> {
 export async function createConfig()
 {
     var err = await getJsonData();
-    
+
       var colDefs:JsonConfigUtils =  await createColumnDefinitionsFromTable();
       document.getElementById("jsonConfig").textContent = colDefs.convertColumnDefinitionsToJson();
 }
@@ -749,6 +787,7 @@ export async function run() {
       sheet = context.workbook.worksheets.getActiveWorksheet();
       tbl = sheet.tables.getItemOrNullObject("CDL");
       tblRange = tbl.getRange();
+      jsonConfigUtils = new JsonConfigUtils();
 
       sheet.getRange().clear("Formats");
       sheet.getRange().conditionalFormats.clearAll();
@@ -762,7 +801,9 @@ export async function run() {
 
       await  CreateTable(context).then(()=>{AddMessage("Create Table Done")});
       
-      var isTableValid:boolean = await validateCDLStructure(RAVECDLLOG);
+
+      jsonLog = await getJsonData();
+      var isTableValid:boolean = await validateCDLStructure(jsonLog);
       if (!isTableValid) {
         addAnalysisInfo("CDL Invalid", 0, "CDL Structure is invalid (check previous exceptions)", "CDLInvalid", enumTypeAnalysis.Danger);
         showSpinner(false);
@@ -771,11 +812,11 @@ export async function run() {
 
       //format section
       await freezeColumns("Ignorable");
-      await FormatCells(context).then(()=>{AddMessage("Format cells Done")});
-      await FormatRawFrom(context).then(()=>{AddMessage("Format raw from Done")});
-      await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
-      await FormatDateColumn(context, "StartTime").then(()=>{AddMessage("Create StartTime Done")}); //StartTime
-      await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
+      // await FormatCells(context).then(()=>{AddMessage("Format cells Done")});
+      // await FormatRawFrom(context).then(()=>{AddMessage("Format raw from Done")});
+      // await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
+      // await FormatDateColumn(context, "StartTime").then(()=>{AddMessage("Create StartTime Done")}); //StartTime
+      // await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
 
       //highlight section
       await HighlightIgnorable().then(()=>{AddMessage("Highlight Ignorable Done")});
@@ -805,6 +846,7 @@ export async function run() {
     showSpinner(false);
     console.error(error);
     AddMessage(error);
+    addAnalysisInfo("Error",0,error, "Run/Catch", enumTypeAnalysis.Danger);
   }
   
   
