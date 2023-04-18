@@ -30,6 +30,7 @@
     "bootstrap": "^5.2.3",
     "core-js": "^3.9.1",
     "jquery": "^3.6.4",
+    "jshint": "^2.13.6",
     "materialize-css": "^1.0.0-rc.2",
     "regenerator-runtime": "^0.13.7"
   },

@@ -3,6 +3,9 @@
  * See LICENSE in the project root for license information.
  */
 
+import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
+import { JsonConfigUtils } from "./jsonConfigUtils";
+
 /* global console, document, Excel, Office */
 
 var ctx:Excel.RequestContext
@@ -61,8 +64,8 @@ function typeCDL(): string {
 }
 
 // Organizer table styles and checkbox
-var organizerTableStyle:string = "TableStyleLight10";
-var attendeeTableStyle:string = "TableStyleLight13";
+var organizerTableStyle:string = "TableStyleLight13";
+var attendeeTableStyle:string = "TableStyleLight10";
 async function isOrganizer():Promise<boolean>
 {
   const checkbox = document.getElementById("isOrganizer") as HTMLInputElement;
@@ -179,6 +182,7 @@ Office.onReady((info) => {
     document.getElementById("sideload-msg").style.display = "none";
     // document.getElementById("app-body").style.display = "flex";
     document.getElementById("run").onclick = run;
+    document.getElementById("createConfig").onclick = createConfig;
     resetAnalysisInfo();
   }
 });
@@ -213,7 +217,7 @@ async function ClearAllTables() {
 async function CreateTable(context) {
   try {
 
-    await ClearAllTables();
+    // await ClearAllTables();
 
     const _isOrganizer = await isOrganizer();
 
@@ -232,6 +236,10 @@ async function CreateTable(context) {
       tblRange=tbl.getRange();
       await context.sync();
     }
+
+    tblRange.clear("Formats");
+    await context.sync();
+
     if (_isOrganizer) {
       tbl.style = organizerTableStyle;  
     }
@@ -242,9 +250,13 @@ async function CreateTable(context) {
     tbl.load('tableStyle');
     tbl.columns.load();
     tblRange = tbl.getRange();
-
     await context.sync();
     
+    await context.sync();
+
+    
+
+
     // // Update table style 
     // //Possible values are: "TableStyleLight1" through "TableStyleLight21", "TableStyleMedium1" 
     // //through "TableStyleMedium28", "TableStyleDark1" through "TableStyleDark11"
@@ -257,6 +269,7 @@ async function CreateTable(context) {
     AddMessage(error);
   }
 }
+
 
 async function FormatCells(context) 
  {
@@ -321,21 +334,17 @@ async function FormatCells(context)
   console.log("Cells formatted.");
 }
 
-async function FilterIgnorable(context) {
-  // let sheet = context.workbook.worksheets.getActiveWorksheet();
-  // let CDLTable = sheet.tables.getItem("CDL");
-
-    // Queue a command to apply a filter on the Category column.
+async function FilterIgnorable(value:string) {
     tbl.columns.load();
-    await context.sync();
+    await ctx.sync();
     let ignorableFilter = tbl.columns.getItemOrNullObject("Ignorable").filter;
-    await context.sync();
+    await ctx.sync();
     ignorableFilter.apply({
       filterOn: Excel.FilterOn.values,
-      values: ["FALSE"]
+      values: [value]
     });
-  await context.sync();
-  console.log("Cells filtered.");
+  await ctx.sync();
+  console.log("Cells filtered. ");
 }
 
 
@@ -346,6 +355,8 @@ async function FormatDateColumn( context, columnName:string){
   const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(columnName);
   const colRange:Excel.Range = col.getDataBodyRange();
   await context.sync();
+  await context.sync();
+
 
   const criteria: Excel.ReplaceCriteria = {
     completeMatch: false, /* Use a complete match to skip cells that already say "okay". */
@@ -369,31 +380,40 @@ async function FormatDateColumn( context, columnName:string){
 
 }
 
-async function HighlighIgnorable(context){
+async function HighlightIgnorable(){
 
-  let ignorableFilter = tbl.columns.getItemOrNullObject("Ignorable").filter;
-  ignorableFilter.clear();
-  await context.sync();
-  const isFilterNull:boolean = ignorableFilter.isNullObject;
-  ignorableFilter.apply({
-    filterOn: Excel.FilterOn.values,
-    values: ["TRUE"]
-  });
+  const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Ignorable").getRange();
 
-  await context.sync();
+  const conditionalFormat = colRange.conditionalFormats.add(
+    Excel.ConditionalFormatType.containsText
+  );
 
-  // Highlight the filtered data
-  
-  const range:Excel.Range = tbl.getDataBodyRange();
-  tbl.load("address");await context.sync();
-  range.format.font.color = "blue";
-  // range.format.fill.tintAndShade = 0.399975585192419;
-  // column.format.font.style = "20% - Accent5";
+  // Color the font of every cell containing "Delayed".
+  conditionalFormat.textComparison.format.font.color = "blue";
+  conditionalFormat.textComparison.format.fill.color="#ADD8E6";
+  // conditionalFormat.textComparison.style = "20% - Accent5";
+  conditionalFormat.textComparison.rule = {
+    operator: Excel.ConditionalTextOperator.contains,
+    text: "TRUE"
+  };
+  await ctx.sync();
 
-  // Clear the filter
-  ignorableFilter.clear();
+  return await CountFilterOccurrences(conditionalFormat.getRange());
 
-  await context.sync();
+
+  // await FilterIgnorable("TRUE").then(async ()=>{
+  //     var filter = tbl.columns["Ignorable"].filter;
+      
+  //     const visibleRange:Excel.RangeView =tbl.getDataBodyRange().getVisibleView();
+  //     var vr:Excel.Range = visibleRange.getRange();
+  //     vr.load("address"); 
+  //     await ctx.sync();
+  //     vr.format.font.color = "blue";
+  //     vr.format.fill.tintAndShade = 0.399975585192419;
+  //     vr.style = "20% - Accent5";
+  // });
+
+  // await ctx.sync();
 }
 
 async function HighlightApptSequence(context){
@@ -445,26 +465,40 @@ await context.sync();
 
 }
 
-
-async function HighlightCRA(context){
-
-  const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Client").getRange();
-
-  const conditionalFormat = colRange.conditionalFormats.add(
-    Excel.ConditionalFormatType.containsText
-  );
-
-  // Color the font of every cell containing "Delayed".
-  conditionalFormat.textComparison.format.font.color = "red";
-  conditionalFormat.textComparison.rule = {
-    operator: Excel.ConditionalTextOperator.contains,
-    text: "CRA:CalendarRepairAssistant"
-  };
-
-  await context.sync();
+async function CountFilterOccurrences( filterRange:Excel.Range ):Promise<number>
+{
+  await ctx.sync();
+  // Get the range of cells affected by the conditional format
+  const affectedRange = await filterRange.getIntersectionOrNullObject(tbl.getRange());
+  affectedRange.load(["rowCount"]); await ctx.sync();
+  // Get the number of rows affected by the conditional format
+  const rowCount = affectedRange ? affectedRange.rowCount : 0;
+  return rowCount;
 }
 
-async function HighLightCreates(context){
+async function HighlightCRA(context):Promise<number>
+{
+
+    const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Client").getRange();
+
+    const conditionalFormat = colRange.conditionalFormats.add(
+      Excel.ConditionalFormatType.containsText
+    );
+
+    // Color the font of every cell containing "Delayed".
+    conditionalFormat.textComparison.format.font.color = "red";
+    conditionalFormat.textComparison.rule = {
+      operator: Excel.ConditionalTextOperator.contains,
+      text: "CRA:CalendarRepairAssistant"
+    };
+    await context.sync();
+
+    return await CountFilterOccurrences(conditionalFormat.getRange());
+  
+}
+
+async function HighLightCreates(context):Promise<number>
+{
   const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Trigger").getRange();
 
   const conditionalFormat = colRange.conditionalFormats.add(
@@ -479,6 +513,9 @@ async function HighLightCreates(context){
   };
 
   await context.sync();
+
+  return await CountFilterOccurrences(conditionalFormat.getRange());
+
 }
 
 
@@ -569,13 +606,78 @@ async function validateCDLStructure(jsonString: string): Promise<boolean> {
 }
 
 
+
+
+async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils> 
+{
+  var colDefinitions:JsonConfigUtils = new JsonConfigUtils();
+
+  // Get the table object from the global variable 'tbl'
+  // Load all columns and their format properties
+  const columns = tbl.columns.load([
+    'name',
+    'values/format',
+    'values/horizontalAlignment',
+    'values/verticalAlignment',
+    'values/columnWidth',
+    'values/indentLevel',
+    'values/style',
+    'values/numberFormat',
+    'values/autosizeColumn'
+  ]);
+
+  // Synchronize with the document
+  await ctx.sync();
+
+   // Iterate through the columns
+   for (const column of columns.items) 
+   {
+      var r: Excel.Range = column.getRange();
+      r.load(['style', 'numberFormat'])
+      r.format.load(['format','horizontalAlignment', 'verticalAlignment', 'columnWidth', 'indentLevel', 'style', 'numberFormat']);
+      await ctx.sync();
+       // Access the loaded properties
+       const name = column.name;
+       const format = r.format;
+       const horizontalAlignment = r.format.horizontalAlignment;
+       const verticalAlignment = r.format.verticalAlignment;
+       const columnWidth = r.format.columnWidth;
+       const indentLevel = r.format.indentLevel;
+       const style = r.style;
+       const numberFormat = r.numberFormat[0].toString(); //numberFormat is an array of all the cells format, we'll check just the first row
+       const autosizeColumn = false;
+       
+       // Create a column definition object and add it to your array
+       const colDef: ColumnDefinition = {
+         columnName: name,
+         isMandatory: true, // Set this to whatever your default is
+         horizontalAlignment:horizontalAlignment,
+         verticalAlignment:verticalAlignment,
+         columnWidth:columnWidth,
+         indentLevel:indentLevel,
+         style:style,
+         numberFormat:numberFormat,
+         visible: true, // Set this to whatever your default is
+         autosizeColumn:false
+       };
+       colDefinitions.addColumn(colDef);
+   }
+
+  return colDefinitions;
+}
+
+
+
+
+
+
 async function PerformAnalysis(context) {
   await resetAnalysisInfo();
-  await CheckNumberOfRows(context);
+  await CheckNumberOfRows();
   await context.sync();
 }
 
-async function CheckNumberOfRows(context: any) {
+async function CheckNumberOfRows() {
   
   if (!CheckNumberOfRows) return; 
 
@@ -585,10 +687,50 @@ async function CheckNumberOfRows(context: any) {
     addAnalysisInfo("Row count number", rowCount, "Number of rows is very close(or above) the Diag Limit of 1000Rows", "CheckNumberOfRows", enumTypeAnalysis.Warning);
     AddMessage("Number of rows is very close to the Diag Limit of 1000Rows returned($tblRange.rowCount)");
   }   
-  await context.sync();
+  await ctx.sync();
 }
 
 
+async function freezeColumns(columnName: string)
+{
+    const column = tbl.columns.getItem(columnName);
+    sheet.freezePanes.freezeRows(1);
+    sheet.freezePanes.freezeColumns(3);
+    await ctx.sync();
+}
+
+
+
+
+
+
+
+
+async function getJsonData(): Promise<any> {
+  const response = await fetch("./RaveCDLconfig.json");
+  const jsonData = await response.json();
+  return jsonData;
+}
+
+
+
+
+
+
+
+
+
+
+
+//#region Config section
+export async function createConfig()
+{
+    var err = await getJsonData();
+    
+      var colDefs:JsonConfigUtils =  await createColumnDefinitionsFromTable();
+      document.getElementById("jsonConfig").textContent = colDefs.convertColumnDefinitionsToJson();
+}
+//#endregion
 
 //Main Function
 export async function run() {
@@ -608,8 +750,18 @@ export async function run() {
       tbl = sheet.tables.getItemOrNullObject("CDL");
       tblRange = tbl.getRange();
 
+      sheet.getRange().clear("Formats");
+      sheet.getRange().conditionalFormats.clearAll();
+      tbl.clearFilters();
+      sheet.freezePanes.unfreeze();
+      
+  
+
       await context.sync() ;
 
+
+      await  CreateTable(context).then(()=>{AddMessage("Create Table Done")});
+      
       var isTableValid:boolean = await validateCDLStructure(RAVECDLLOG);
       if (!isTableValid) {
         addAnalysisInfo("CDL Invalid", 0, "CDL Structure is invalid (check previous exceptions)", "CDLInvalid", enumTypeAnalysis.Danger);
@@ -617,19 +769,24 @@ export async function run() {
         return;
       }
 
-      await CreateTable(context).then(()=>{AddMessage("Create Table Done")});
+      //format section
+      await freezeColumns("Ignorable");
       await FormatCells(context).then(()=>{AddMessage("Format cells Done")});
-      await HighlighIgnorable(context).then(()=>{AddMessage("Highlight Ignorable Done")});
-      await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
-      await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
-      await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
       await FormatRawFrom(context).then(()=>{AddMessage("Format raw from Done")});
-
-      //await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
+      await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
       await FormatDateColumn(context, "StartTime").then(()=>{AddMessage("Create StartTime Done")}); //StartTime
       await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
 
-      await FilterIgnorable(context).then(()=>{AddMessage("Filter Ignorable Done")});
+      //highlight section
+      await HighlightIgnorable().then(()=>{AddMessage("Highlight Ignorable Done")});
+      await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
+      await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
+      
+      //await addAnalysisInfo("CRA Found", rowCount, "CRA Events were found, meaning calendar state was not 100%","HighlightCRA",enumTypeAnalysis.Warning);
+      await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
+
+      //Filters section
+      await FilterIgnorable("FALSE").then(()=>{AddMessage("Filter Ignorable Done")});
 
       await context.sync();
       
@@ -642,11 +799,15 @@ export async function run() {
       const urlCDLVideo:string = "https://msit.microsoftstream.com/video/4221a4ff-0400-9fb2-4805-f1eb0f28f09b";
       addAnalysisInfo("Success", 0,`Process executed successfully, check the video on CDL analysis ${urlCDLVideo} `, "success", enumTypeAnalysis.Success)
     });
-  } catch (error) {
+  } 
+  catch (error) 
+  {
     showSpinner(false);
     console.error(error);
     AddMessage(error);
   }
+  
+  
 }
 
 

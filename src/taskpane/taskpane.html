@@ -16,9 +16,10 @@
     <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
     <!-- <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css"/> -->
 
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap CSS
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"> -->
 
     <!-- jQuery and Bootstrap JS -->
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
@@ -30,6 +31,49 @@
 </head>
 
 <body class="bg-dark">
+    <!-- Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start" id="demo">
+    <div class="offcanvas-header">
+      <h2 class="offcanvas-title">JSON Config</h2>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="form-group container">
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="createConfig">Create Config File</button>
+            </div>
+            <div class="form-group">
+                <textarea class="form-control" rows="15" placeholder="Json Config" id="jsonConfig"></textarea>
+            </div>
+        </div>
+    </div>
+  </div>
+  
+
+
+  <div class="offcanvas offcanvas-start" id="video">
+    <div class="offcanvas-header">
+      <h2 class="offcanvas-title">Video Troubleshoot Help(POC)</h2>
+      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body">
+        <div class="container">
+            <div class="card-header">
+                Video Sharing Calendars
+            </div>
+            <div class="card-body ">
+                <div class="embed-responsive embed-responsive-21by9">
+                    <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
+                        title="YouTube video player" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
+        </div>
+
+    </div>
+  </div>
+  
  
     <div class="bg-light rounded p-3 card">
         <div class="card-header">
@@ -54,12 +98,18 @@
                     </select>
                 </div>
                 
-                <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="isOrganizer">
-                <label class="form-check-label" for="isOrganizer">This is an Organizer CDL</label>
+                <div class="form-group">
+
                 </div>
-                <div class="form-group form-check">
-                    <input type="checkbox" class="form-check-input" id="warn1KRows">
+
+                <div class="form-group">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" role="switch" id="isOrganizer">
+                        <label class="form-check-label" for="isOrganizer">This is an Organizer CDL</label>
+                    </div>
+                </div>
+                <div class="form-group form-switch">
+                    <input type="checkbox" class="form-check-input" role="switch" id="warn1KRows">
                     <label class="form-check-label" for="warn1KRows">Warn if Rows are close to 1K</label>
                 </div>
         
@@ -68,6 +118,8 @@
                     <div class="spinner-border text-primary invisible" role="status" id="spinner">
                         <span class="sr-only">Loading...</span>
                     </div>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#demo">Json Generate(Admin)</button>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#video">Show video (POC)</button>
                 </div>
                 <div class="form-group">
                     <p class="mb-1 small" id="statusMessage">Status Message</p>
@@ -88,20 +140,7 @@
         <div class="card-footer">
             <small>Exchange Calendaring team</small>
         </div>
-
-        <div class="container invisible">
-            <div class="card-header">
-                testing multimedia
-            </div>
-            <div class="card-body ">
-                <div class="embed-responsive embed-responsive-21by9">
-                    <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
-                        title="YouTube video player" frameborder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowfullscreen></iframe>
-                </div>
-            </div>
-        </div>
+        
     </div>
 </body>
 

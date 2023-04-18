@@ -54,9 +54,11 @@
                     </select>
                 </div>
                 
-                <div class="form-group form-check">
-                <input type="checkbox" class="form-check-input" id="isOrganizer">
-                <label class="form-check-label" for="isOrganizer">This is an Organizer CDL</label>
+                <div class="form-group">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" role="switch" id="isOrganizer">
+                        <label class="form-check-label" for="isOrganizer">This is an Organizer CDL</label>
+                    </div>
                 </div>
                 <div class="form-group form-check">
                     <input type="checkbox" class="form-check-input" id="warn1KRows">
@@ -73,85 +75,45 @@
                     <p class="mb-1 small" id="statusMessage">Status Message</p>
                 </div>
                 <div class="list-group" id="analysisInfo">
-                    <a href="#" class="list-group-item list-group-item-action list-group-item-warning">
+                    <!-- Template of data to be shown on analysisInfo -->
+                    <!-- <a href="#" class="list-group-item list-group-item-action list-group-item-warning">
                         <div class="d-flex w-100 justify-content-between">
                             <h5 class="mb-1">Row limit</h5>
                             <span class="badge badge-primary badge-pill">1002</span>
                         </div>
                         <p class="mb-1">If rows returned are close to 1K, this can be a limitation of Rave diagnostics and could mean dataset returned is not complete. To avoid this, ask for raw CDL to the customer, and format directly with the option RAW</p>
                         <small>Get-CalendarDiagnosticObjects</small>
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action ">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">Created events</h5>
-                        <span class="badge badge-primary badge-pill">2</span>
-                    </div>
-                    <p class="mb-1">There are 2 events of type CREATED, which means that Exchange has created new calendar items to send to others</p>
-                    <small class="text-muted">Donec id elit non mi porta.</small>
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action list-group-item-danger">
-                    <div class="d-flex w-100 justify-content-between">
-                        <h5 class="mb-1">Exception registered</h5>
-                        <span class="badge badge-primary badge-pill">1</span>
-                    </div>
-                    <p class="mb-1">[{
-                        "resource": "/c:/MS/Rusilva/ExcelCalLogs/ExcelCalLogs/tsconfig.json",
-                        "owner": "_generated_diagnostic_collection_name_#0",
-                        "code": {
-                            "value": "typescript-config/consistent-casing",
-                            "target": {
-                                "$mid": 1,
-                                "path": "/docs/user-guide/hints/hint-typescript-config/consistent-casing/",
-                                "scheme": "https",
-                                "authority": "webhint.io"
-                            }
-                        },
-                        "severity": 4,
-                        "message": "The compiler option \"forceConsistentCasingInFileNames\" should be enabled to reduce issues when working with different OSes.",
-                        "source": "Microsoft Edge Tools",
-                        "startLineNumber": 2,
-                        "startColumn": 4,
-                        "endLineNumber": 2,
-                        "endColumn": 19
-                    }][{
-            "resource": "/c:/MS/Rusilva/ExcelCalLogs/ExcelCalLogs/tsconfig.json",
-            "owner": "_generated_diagnostic_collection_name_#0",
-            "code": {
-                "value": "typescript-config/consistent-casing",
-                "target": {
-                    "$mid": 1,
-                    "path": "/docs/user-guide/hints/hint-typescript-config/consistent-casing/",
-                    "scheme": "https",
-                    "authority": "webhint.io"
-                }
-            },
-            "severity": 4,
-            "message": "The compiler option \"forceConsistentCasingInFileNames\" should be enabled to reduce issues when working with different OSes.",
-            "source": "Microsoft Edge Tools",
-            "startLineNumber": 2,
-            "startColumn": 4,
-            "endLineNumber": 2,
-            "endColumn": 19
-        }]</p>
-                    <small class="text-muted">This will need a fix in the code.</small>
-                    </a>
+                    </a> -->
                 </div>
             </form>
         </div>
         <div class="card-footer">
-            footer
+            <small>Exchange Calendaring team</small>
+        </div>
+        
+        
+        <div class="container invisible">
+            <div class="card-header">
+                testing multimedia
+            </div>
+            <div class="card-body ">
+                <div class="embed-responsive embed-responsive-21by9">
+                    <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
+                        title="YouTube video player" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+                </div>
+            </div>
         </div>
 
 
-        <div class="card-header">
-            testing multimedia
-        </div>
-        <div class="card-body ">
-            <div class="embed-responsive embed-responsive-21by9">
-                <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
-                    title="YouTube video player" frameborder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowfullscreen></iframe>
+
+        <div class="form-group container">
+            <div class="form-group">
+                <button type="button" class="btn btn-primary" id="createConfig">Create Config File</button>
+            </div>
+            <div class="form-group">
+                <textarea class="form-control" rows="10" placeholder="Json Config" id="jsonConfig"></textarea>
             </div>
         </div>
 
