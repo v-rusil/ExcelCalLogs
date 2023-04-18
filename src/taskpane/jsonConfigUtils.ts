@@ -1,5 +1,6 @@
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from './columnDefinitions';
 
+
 export class JsonConfigUtils 
 {
   private columns: ColumnDefinition[] = [];
@@ -43,5 +44,46 @@ export class JsonConfigUtils
     const json: string = JSON.stringify(this.columns);
     return json;
   }
+
+
+
+  //#region  conversion utils
+
+convertToHorizontalAlignment(value: string): Excel.HorizontalAlignment {
+  switch (value) {
+    case "Center":
+      return Excel.HorizontalAlignment.center;
+    case "Left":
+      return Excel.HorizontalAlignment.left;
+    case "Right":
+      return Excel.HorizontalAlignment.right;
+    case "Justify":
+      return Excel.HorizontalAlignment.justify
+    case"General":
+        return Excel.HorizontalAlignment.general
+    default:
+      return Excel.HorizontalAlignment.general
+  }
+}
+
+  convertToVerticalAlignment(value: string): Excel.VerticalAlignment {
+    switch (value) {
+      case "Center":
+        return Excel.VerticalAlignment.bottom;
+      case "Left":
+        return Excel.VerticalAlignment.center;
+      case "Right":
+        return Excel.VerticalAlignment.distributed;
+      case "Justify":
+        return Excel.VerticalAlignment.justify;
+      case"General":
+          return Excel.VerticalAlignment.top;
+      default:
+        return Excel.VerticalAlignment.top;
+    }
+  }
+
+  //#endregion
+
 
 }
