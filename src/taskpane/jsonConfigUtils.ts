@@ -47,43 +47,50 @@ export class JsonConfigUtils
 
 
 
-  //#region  conversion utils
+//#region Horizontal and Vertical Alignment converters
 
-convertToHorizontalAlignment(value: string): Excel.HorizontalAlignment {
+convertToHorizontalAlignment(value: string) : Excel.HorizontalAlignment
+{
   switch (value) {
     case "Center":
       return Excel.HorizontalAlignment.center;
+      break;
     case "Left":
       return Excel.HorizontalAlignment.left;
+      break;
     case "Right":
       return Excel.HorizontalAlignment.right;
+      break;
     case "Justify":
       return Excel.HorizontalAlignment.justify
+      break;
     case"General":
-        return Excel.HorizontalAlignment.general
+    return Excel.HorizontalAlignment.general
+      break;
     default:
       return Excel.HorizontalAlignment.general
+      break;
   }
 }
 
-  convertToVerticalAlignment(value: string): Excel.VerticalAlignment {
-    switch (value) {
-      case "Center":
-        return Excel.VerticalAlignment.bottom;
-      case "Left":
-        return Excel.VerticalAlignment.center;
-      case "Right":
-        return Excel.VerticalAlignment.distributed;
-      case "Justify":
-        return Excel.VerticalAlignment.justify;
-      case"General":
-          return Excel.VerticalAlignment.top;
-      default:
+convertToVerticalAlignment(value: string): Excel.VerticalAlignment {
+  switch (value) {
+    case "Bottom":
+      return Excel.VerticalAlignment.bottom;
+    case "Center":
+      return Excel.VerticalAlignment.center;
+    case "Distributed":
+      return Excel.VerticalAlignment.distributed;
+    case "Justify":
+      return Excel.VerticalAlignment.justify;
+    case"Top":
         return Excel.VerticalAlignment.top;
-    }
+    default:
+      return Excel.VerticalAlignment.top;
   }
+}
 
-  //#endregion
+//#endregion
 
 
 }

@@ -27,7 +27,9 @@
         crossorigin="anonymous"></script>
 
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.4/font/bootstrap-icons.css">
+                                   
+
 
     <!-- Template styles -->
     <link href="taskpane.css" rel="stylesheet" type="text/css" />
@@ -35,47 +37,69 @@
 
 <body class="bg-dark">
     <!-- Offcanvas Sidebar -->
-    <div class="offcanvas offcanvas-start" id="demo">
-    <div class="offcanvas-header">
-      <h2 class="offcanvas-title">JSON Config</h2>
-      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body">
-        <div class="form-group container">
-            <div class="form-group">
-                <button type="button" class="btn btn-primary" id="createConfig">Create Config File</button>
-            </div>
-            <div class="form-group">
-                <textarea class="form-control" rows="15" placeholder="Json Config" id="jsonConfig"></textarea>
-            </div>
+    <div class="offcanvas offcanvas-start" id="console">
+        <div class="offcanvas-header">
+        <h2 class="offcanvas-title">Console</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas">.</button>
         </div>
-    </div>
-  </div>
-  
-
-
-  <div class="offcanvas offcanvas-start" id="video">
-    <div class="offcanvas-header">
-      <h2 class="offcanvas-title">Video Troubleshoot Help(POC)</h2>
-      <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
-    </div>
-    <div class="offcanvas-body">
-        <div class="container">
-            <div class="card-header">
-                Video Sharing Calendars
-            </div>
-            <div class="card-body ">
-                <div class="embed-responsive embed-responsive-21by9">
-                    <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
-                        title="YouTube video player" frameborder="0"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowfullscreen></iframe>
+        <div class="offcanvas-body">
+            <div class="form-group container">
+                <div class="form-group">
+                    <div id="myConsole" class="container">
+                        <div class="row header">
+                            <div class="col-2 text-xs">#</div>
+                            <div class="col-10 text-xs">First</div>
+                        </div>
+                    </div>
+                      
                 </div>
             </div>
         </div>
-
     </div>
-  </div>
+
+
+    <div class="offcanvas offcanvas-start" id="demo">
+        <div class="offcanvas-header">
+        <h2 class="offcanvas-title">JSON Config</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas">.</button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="form-group container">
+                <div class="form-group">
+                    <button type="button" class="btn btn-primary" id="createConfig" data-toggle="tooltip" data-placement="top" title="Create JSON from table"><i class="bi bi-arrow-bar-down"></i></button>
+                    <button type="button" class="btn btn-primary" id="testConfig" data-toggle="tooltip" data-placement="top" title="Test json Format on current table"><i class="bi bi-arrow-bar-up"></i></button>
+                    <button type="button" class="btn btn-primary" id="testJsonFile" data-toggle="tooltip" data-placement="top" title="test json file against current table"><i class="bi bi-file-arrow-down"></i></button>
+                </div>
+                <div class="form-group">
+                    <textarea class="form-control" rows="15" placeholder="Json Config" id="jsonConfig"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+  
+
+
+    <div class="offcanvas offcanvas-start" id="video">
+        <div class="offcanvas-header">
+        <h2 class="offcanvas-title">Video Troubleshoot Help(POC)</h2>
+        <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body">
+            <div class="container">
+                <div class="card-header">
+                    Video Sharing Calendars
+                </div>
+                <div class="card-body ">
+                    <div class="embed-responsive embed-responsive-21by9">
+                        <iframe class="embed-responsive-item" width="560" height="315" src="https://www.youtube.com/embed/7C38muJjnyc"
+                            title="YouTube video player" frameborder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
   
  
     <div class="bg-light rounded p-3 card">
@@ -96,8 +120,8 @@
                     <label for="typeCDL">Choose Type of CDL Log</label>
                     <select class="form-control" id="typeCDL">
                         <option value="rave-diag-log">RAVE Diag Log (Default)</option>
-                        <option value="raw-cdl">RAW CDL from Get-CalendarDiagnosticObjects</option>
-                        <option value="onprem-exchange-cdl">ONPrem Exchange CDL (future development)</option>
+                        <option value="exo-cdl">RAW CDL from Get-CalendarDiagnosticObjects</option>
+                        <!-- <option value="onprem-exchange-cdl">ONPrem Exchange CDL (future development)</option> -->
                     </select>
                 </div>
                 
@@ -115,15 +139,21 @@
                     <input type="checkbox" class="form-check-input" role="switch" id="warn1KRows">
                     <label class="form-check-label" for="warn1KRows">Warn if Rows are close to 1K</label>
                 </div>
-        
+                <div class="form-group form-switch">
+                    <input type="checkbox" class="form-check-input" role="switch" id="hideLessRelevants">
+                    <label class="form-check-label" for="hideLessRelevants">Hide less relevant columns</label>
+                </div>
+
                 <div class="form-group">
-                    <button type="button" class="btn"><i class="fa-regular fa-calendar-days"></i></button>
-                    <button type="button" class="btn btn-primary" id="run">Run CDL Checks</button>
+                    <button type="button" class="btn btn-primary" id="run"><i class="bi bi-calendar-week"></i></button>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#demo"><i class="bi bi-filetype-json"></i></button>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#video"><i class="bi bi-film"></i></button>
+                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#console"><i class="bi bi-list-check"></i></button>
+                    
                     <div class="spinner-border text-primary invisible" role="status" id="spinner">
-                        <span class="sr-only">Loading...</span>
+                        <!-- <span class="sr-only">Loading...</span> -->
                     </div>
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#demo">Json Generate(Admin)</button>
-                    <button class="btn btn-primary" type="button" data-bs-toggle="offcanvas" data-bs-target="#video">Show video (POC)</button>
+                    
                 </div>
                 <div class="form-group">
                     <p class="mb-1 small" id="statusMessage">Status Message</p>
