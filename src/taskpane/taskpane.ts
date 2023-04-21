@@ -5,6 +5,7 @@
 
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
 import { JsonConfigUtils } from './jsonConfigUtils';
+import { myConsole } from "./myConsole";
 
 /* global console, document, Excel, Office */
 
@@ -65,8 +66,8 @@ function typeCDL(): string {
 }
 
 // Organizer table styles and checkbox
-var organizerTableStyle:string = "TableStyleLight13";
-var attendeeTableStyle:string = "TableStyleLight10";
+var organizerTableStyle:string = "TableStyleLight10";
+var attendeeTableStyle:string = "TableStyleLight13";
 async function isOrganizer():Promise<boolean>
 {
   const checkbox = document.getElementById("isOrganizer") as HTMLInputElement;
@@ -77,6 +78,12 @@ async function isOrganizer():Promise<boolean>
 async function warn1KRows():Promise<boolean>
 {
   const checkbox = document.getElementById("warn1KRows") as HTMLInputElement;
+  return checkbox.checked;
+}
+
+async function hideLessRelevants():Promise<boolean>
+{
+  const checkbox = document.getElementById("hideLessRelevants") as HTMLInputElement;
   return checkbox.checked;
 }
 
@@ -173,6 +180,14 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
     const analysisInfoDiv = document.getElementById('analysisInfo');
     analysisInfoDiv.innerHTML = '';
   }
+
+  async function freezeColumns(columnName: string)
+{
+    const column = tbl.columns.getItem(columnName);
+    sheet.freezePanes.freezeRows(1);
+    sheet.freezePanes.freezeColumns(3);
+    await ctx.sync();
+}
 //#endregion
 
 
@@ -180,47 +195,28 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
 //#region Init OfficeJS
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
+    jsonConfigUtils = new JsonConfigUtils();
+
     document.getElementById("sideload-msg").style.display = "none";
-    // document.getElementById("app-body").style.display = "flex";
+    
     document.getElementById("run").onclick = run;
     document.getElementById("createConfig").onclick = createConfig;
+    document.getElementById("testConfig").onclick = testConfig;
+    document.getElementById("testJsonFile").onclick = testJsonFile;
+    
+    $(function () {
+      $('[data-toggle="tooltip"]').tooltip()
+    });
+
     resetAnalysisInfo();
   }
 });
 
-async function ClearAllTables() {
-  try {
-    await Excel.run(async (context) => {
-      
-      // Get all the tables in the worksheet
-      const tables = sheet.tables;
-
-      // Load the items property of the tables object
-      tables.load("items");
-
-      // Synchronize the document state by executing the queued commands
-      await context.sync();
-
-      // Loop through each table and remove its formatting
-      tables.items.forEach((table) => {
-        table.getRange().clear("Formats");
-      });
-
-      // Synchronize the document state by executing the queued commands
-      await context.sync();
-    });
-  } catch (error) {
-    console.error(error);
-  }
-}
 //#endregion
 
-async function CreateTable(context) {
+//#region Create Table
+async function CreateTable(context, keepFormats:boolean=false) {
   try {
-
-    // await ClearAllTables();
-
-    const _isOrganizer = await isOrganizer();
 
     // Define the range of cells you want to select
     const range = sheet.getUsedRange();
@@ -229,7 +225,10 @@ async function CreateTable(context) {
     // Create a table from the selected range
     let tbl = sheet.tables.getItemOrNullObject("CDL");
     let tblRange = tbl.getRange();
-    await context.sync();
+    await context.sync().catch((error)=>{
+      addAnalysisInfo("error",0,error,"create table", enumTypeAnalysis.Danger);
+      console.log(error);
+    }) ;
 
     if (tbl.isNullObject) {
       tbl = sheet.tables.add(range, true /* hasHeaders */); 
@@ -238,9 +237,12 @@ async function CreateTable(context) {
       await context.sync();
     }
 
+    if (keepFormats) return; //just create table and leave
+
     tblRange.clear("Formats");
     await context.sync();
 
+    var _isOrganizer = await isOrganizer();
     if (_isOrganizer) {
       tbl.style = organizerTableStyle;  
     }
@@ -253,111 +255,37 @@ async function CreateTable(context) {
     tblRange = tbl.getRange();
     await context.sync();
     
-    await context.sync();
-
-    
-
-
-    // // Update table style 
-    // //Possible values are: "TableStyleLight1" through "TableStyleLight21", "TableStyleMedium1" 
-    // //through "TableStyleMedium28", "TableStyleDark1" through "TableStyleDark11"
-    // tbl.style = "TableStyleLight10";
-    // tbl.load('tableStyle');
-    // await context.sync();
-    
   } catch (error) {
+    addAnalysisInfo("create Table", 0, `Error creating table ${error}`, "Create Table", enumTypeAnalysis.Danger );
     console.error(error);
     AddMessage(error);
   }
 }
 
+//#endregion 
 
-async function FormatCells(context) 
- {
-  // // Get a reference to the active worksheet
-  // const sheet = context.workbook.worksheets.getActiveWorksheet();
-  
-  // Format cells
-  const columnsA = sheet.getRange("A:A");
-  columnsA.format.horizontalAlignment = "Center";
-  columnsA.format.verticalAlignment = "Bottom";
-  columnsA.format.columnWidth = 6;
-  columnsA.format.autofitColumns();
-  
-  const columnsEF = sheet.getRange("E:F");
-  columnsEF.format.autofitColumns();
-  columnsEF.format.indentLevel = 1;
-
-  const columnC = sheet.getRange("C:C");
-  columnC.format.columnWidth = 8;
-  const columnE = sheet.getRange("E:E");
-  columnE.format.columnWidth = 18;
-  const columnG = sheet.getRange("G:G");
-  columnG.format.autofitColumns();
-  columnG.format.columnWidth = 25;
-
-  const columnsHI:Excel.Range = sheet.getRange("H:I");
-  columnsHI.format.horizontalAlignment = "Center";
-  columnsHI.format.verticalAlignment = "Bottom";
-  columnsHI.format.columnWidth = 6;
-
-  const columnsKM:Excel.Range = sheet.getRange("K:M");
-  columnsKM.format.indentLevel = 1;
-  //sheet.getUsedRange().getOffsetRange(-1, 0).getOffsetRange(1, 0).activate();
-  const columnP:Excel.Range = sheet.getRange("P:P");
-  columnP.format.columnWidth = 6.33;
-
-  // const tableName = "MyTable";
-  // const table = sheet.tables.getItem(tableName).range;
-  // const filterRange = table.getOffsetRange(1, 15).getIntersection(table.getUsedRange());
-  // filterRange.autoFilter(1, "TRUE");
-
-  const columnQ = sheet.getRange("Q:Q");
-  columnQ.format.columnWidth = 11.67;
-  
-  const columnN = sheet.getRange("N:N");
-  columnN.format.horizontalAlignment = "Center";
-  columnN.format.verticalAlignment = "Bottom";
-  columnN.format.columnWidth = 10;
-  
-  // const filterRange2 = table.getOffsetRange(1, 24).getIntersection(table.getUsedRange());
-  // filterRange2.autoFilter(1, "ForwardedAppointment");
-
-  const columnY = sheet.getRange("Y:Y");
-  columnY.style = "Neutral";
-  columnY.format.columnWidth = 10.56;
-  const columnW = sheet.getRange("W:W");
-  columnW.format.indentLevel = 1;
-  columnW.format.columnWidth = 11.22;
-
-  await context.sync();
-  // Done
-  console.log("Cells formatted.");
-}
-
+//#region Filters methods
 async function FilterIgnorable(value:string) {
-    tbl.columns.load();
-    await ctx.sync();
-    let ignorableFilter = tbl.columns.getItemOrNullObject("Ignorable").filter;
-    await ctx.sync();
-    ignorableFilter.apply({
-      filterOn: Excel.FilterOn.values,
-      values: [value]
-    });
+  tbl.columns.load();
   await ctx.sync();
-  console.log("Cells filtered. ");
+  let ignorableFilter = tbl.columns.getItemOrNullObject("Ignorable").filter;
+  await ctx.sync();
+  ignorableFilter.apply({
+    filterOn: Excel.FilterOn.values,
+    values: [value]
+  });
+await ctx.sync();
+console.log("Cells filtered. ");
 }
 
+//#endregion
 
+
+//#region FormatDate (Legacy to remove)
 async function FormatDateColumn( context, columnName:string){
-  //const sheet = context.workbook.worksheets.getActiveWorksheet();
-  
-  // Format cells
   const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(columnName);
   const colRange:Excel.Range = col.getDataBodyRange();
   await context.sync();
-  await context.sync();
-
 
   const criteria: Excel.ReplaceCriteria = {
     completeMatch: false, /* Use a complete match to skip cells that already say "okay". */
@@ -381,18 +309,22 @@ async function FormatDateColumn( context, columnName:string){
 
 }
 
+
+//#endregion
+
+//#region Highlights methods
+
 async function HighlightIgnorable(){
 
-  const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Ignorable").getRange();
+  const colRange:Excel.Range = tbl.columns.getItemOrNullObject("Ignorable").getDataBodyRange();
 
   const conditionalFormat = colRange.conditionalFormats.add(
     Excel.ConditionalFormatType.containsText
   );
 
-  // Color the font of every cell containing "Delayed".
   conditionalFormat.textComparison.format.font.color = "blue";
   conditionalFormat.textComparison.format.fill.color="#ADD8E6";
-  // conditionalFormat.textComparison.style = "20% - Accent5";
+  
   conditionalFormat.textComparison.rule = {
     operator: Excel.ConditionalTextOperator.contains,
     text: "TRUE"
@@ -400,21 +332,7 @@ async function HighlightIgnorable(){
   await ctx.sync();
 
   return await CountFilterOccurrences(conditionalFormat.getRange());
-
-
-  // await FilterIgnorable("TRUE").then(async ()=>{
-  //     var filter = tbl.columns["Ignorable"].filter;
-      
-  //     const visibleRange:Excel.RangeView =tbl.getDataBodyRange().getVisibleView();
-  //     var vr:Excel.Range = visibleRange.getRange();
-  //     vr.load("address"); 
-  //     await ctx.sync();
-  //     vr.format.font.color = "blue";
-  //     vr.format.fill.tintAndShade = 0.399975585192419;
-  //     vr.style = "20% - Accent5";
-  // });
-
-  // await ctx.sync();
+  
 }
 
 async function HighlightApptSequence(context){
@@ -434,48 +352,6 @@ async function HighlightApptSequence(context){
     await context.sync();
 }
 
-//format columns SentRepresentingEmailAddress	ResponsibleUserName	SenderEmailAddress
-
-async function FormatRawFrom(context){
-
-  const colRepresentingEmailAddress:Excel.Range =
-        tbl.columns.getItemOrNullObject("SentRepresentingEmailAddress").getRange();
-  const colResponsibleUserName:Excel.Range =
-        tbl.columns.getItemOrNullObject("ResponsibleUserName").getRange();
-  const colSenderEmailAddress:Excel.Range =
-        tbl.columns.getItemOrNullObject("SenderEmailAddress").getRange();
-
-
-colRepresentingEmailAddress.format.horizontalAlignment = "Center";
-colRepresentingEmailAddress.format.verticalAlignment = "Bottom";
-colRepresentingEmailAddress.format.indentLevel = 1;
-colRepresentingEmailAddress.format.autofitColumns();
-await context.sync();
-
-colResponsibleUserName.format.horizontalAlignment = "Center";
-colResponsibleUserName.format.verticalAlignment = "Bottom";
-colResponsibleUserName.format.indentLevel = 1;
-colResponsibleUserName.format.autofitColumns();
-await context.sync();
-
-colSenderEmailAddress.format.horizontalAlignment = "Center";
-colSenderEmailAddress.format.verticalAlignment = "Bottom";
-colSenderEmailAddress.format.autofitColumns();
-colSenderEmailAddress.format.indentLevel = 1;
-await context.sync();
-
-}
-
-async function CountFilterOccurrences( filterRange:Excel.Range ):Promise<number>
-{
-  await ctx.sync();
-  // Get the range of cells affected by the conditional format
-  const affectedRange = await filterRange.getIntersectionOrNullObject(tbl.getRange());
-  affectedRange.load(["rowCount"]); await ctx.sync();
-  // Get the number of rows affected by the conditional format
-  const rowCount = affectedRange ? affectedRange.rowCount : 0;
-  return rowCount;
-}
 
 async function HighlightCRA(context):Promise<number>
 {
@@ -519,8 +395,24 @@ async function HighLightCreates(context):Promise<number>
 
 }
 
+//#endregion
+
+//#region Count filter Occurrences
+async function CountFilterOccurrences( filterRange:Excel.Range ):Promise<number>
+{
+  await ctx.sync();
+  // Get the range of cells affected by the conditional format
+  const affectedRange = await filterRange.getIntersectionOrNullObject(tbl.getRange());
+  affectedRange.load(["rowCount"]); await ctx.sync();
+  // Get the number of rows affected by the conditional format
+  const rowCount = affectedRange ? affectedRange.rowCount : 0;
+  return rowCount;
+}
+
+//#endregion
 
 
+//#region json Methods
 function isJSONString(str: any): boolean {
   try {
     const jsonObj = JSON.parse(str);
@@ -529,7 +421,8 @@ function isJSONString(str: any): boolean {
     return false;
   }
 }
-async function validateCDLStructure(json: any): Promise<boolean> {
+
+async function validateCDLStructure(json: any, hideLessRelevants:boolean=false): Promise<boolean> {
   
   var jsonArray;
   
@@ -549,20 +442,30 @@ async function validateCDLStructure(json: any): Promise<boolean> {
         throw new Error("Input JSON is not an array.");
   }
 
-  try {
-    // var jsonArray = JSON.parse(jsonString);
-
+  try 
+  {
     
-    tbl.columns.load();
-    await ctx.sync();
+    // tbl.columns.load();
+    // await ctx.sync();
 
     for (const element of jsonArray) 
     {
-      var tblCol:Excel.TableColumn;
-      var tblColRange:Excel.Range;
-      if (element.columnName !== undefined && element.columnName !== "") {
+        var tblCol:Excel.TableColumn;
+        var tblColRange:Excel.Range;
+        var tblColFormat:Excel.RangeFormat;
+        if (element.columnName == undefined || element.columnName == "") 
+        {
+          console.log("Skipping json element as it is undefined ColumnName");
+          continue;
+        }
+
         tblCol = tbl.columns.getItemOrNullObject(element.columnName);
-        tblColRange = tblCol.getRange();
+        tblCol.load(["isNullObject"]);
+        tblColRange = tblCol.getDataBodyRange();
+        tblColRange.load(["format"]);
+        tblColFormat = tblColRange.format;
+        tblColFormat.load(["horizontalAlignment", "verticalAlignment"]);
+        ctx.trackedObjects.add([tblCol, tblColRange]);;
         await ctx.sync();
 
         if (tblCol.isNullObject) 
@@ -575,63 +478,68 @@ async function validateCDLStructure(json: any): Promise<boolean> {
           addAnalysisInfo("columnName",0,`Column Name does not exist: ${element.columnName}`, "ValidateJSONStruct", enumTypeAnalysis.Danger);
           return false;
         }
-        else
-        {
-          console.log(`Column Name: ${element.columnName}`);
 
-          if (element.horizontalAlignment !== undefined && element.horizontalAlignment !== "") {
-            console.log(`Horizontal Alignment: ${element.horizontalAlignment}`);
-            tblColRange.format.horizontalAlignment = jsonConfigUtils.convertToHorizontalAlignment(element.horizontalAlignment);
-            await ctx.sync();
-          }
-    
-          if (element.verticalAlignment !== undefined && element.verticalAlignment !== "") {
+
+        console.log(`Column Name: ${element.columnName}`);
+
+        if (element.style !== undefined && element.style !== "") {
+          //style must be the first prop to set as it overrides all the below props
+          console.log(`Style: ${element.style}`);
+          tblColRange.style = element.style;
+          // await ctx.sync();
+        }
+
+        if (element.horizontalAlignment !== undefined && element.horizontalAlignment !== "") {
+          console.log(`Horizontal Alignment: ${element.horizontalAlignment}`);
+          tblColRange.format.horizontalAlignment =jsonConfigUtils.convertToHorizontalAlignment(element.horizontalAlignment);
+          // await ctx.sync().catch((error) => {
+          //                                       console.log(`Error: ${error}`);
+          //                                     });
+        }
+  
+        if (element.verticalAlignment !== undefined && element.verticalAlignment !== "") {
             console.log(`Vertical Alignment: ${element.verticalAlignment}`);
             tblColRange.format.verticalAlignment = jsonConfigUtils.convertToVerticalAlignment(element.verticalAlignment);
-            await ctx.sync();
-          }
-    
-          if (element.columnWidth !== undefined && element.columnWidth !== null) {
-            console.log(`Column Width: ${element.columnWidth}`);
-            tblColRange.format.columnWidth = element.columnWidth;
-            await ctx.sync();
-          }
-    
-          if (element.indentLevel !== undefined && element.indentLevel !== null) {
-            console.log(`Ident Level: ${element.indentLevel}`);
-            tblColRange.format.indentLevel = element.indentLevel;
-            await ctx.sync();
-          }
-    
-          if (element.style !== undefined && element.style !== "") {
-            console.log(`Style: ${element.style}`);
-            tblColRange.style = element.style;
-            await ctx.sync();
-          }
-
-          if (element.numberFormat !== undefined && element.numberFormat !== "") {
-            console.log(`Style: ${element.numberFormat}`);
-            tblColRange.numberFormat = element.numberFormat;
-            await ctx.sync();
-          }
-
-          if (element.visible !== undefined && element.visible !== null) {
-            console.log(`Visible: ${element.visible}`);
-            if (!element.visible)  tblColRange.columnHidden = true;
-            await ctx.sync();
-          }
-
-          if (element.autosizeColumn !== undefined && element.autosizeColumn !== null) {
-            console.log(`autosizeColumn: ${element.autosizeColumn}`);
-            if (element.autosizeColumn==="true")  tblColRange.format.autofitColumns();
-            await ctx.sync();
-          }
-
-          await ctx.sync();
-              
+            // await ctx.sync();
         }
-        
-      }
+  
+        if (element.columnWidth !== undefined && element.columnWidth !== null) {
+          console.log(`Column Width: ${element.columnWidth}`);
+          tblColRange.format.columnWidth = element.columnWidth;
+          // await ctx.sync();
+        }
+  
+        if (element.indentLevel !== undefined && element.indentLevel !== null) {
+          console.log(`Indent Level: ${element.indentLevel}`);
+          tblColRange.format.indentLevel = element.indentLevel;
+          // await ctx.sync();
+        }
+  
+       
+        if (element.numberFormat !== undefined && element.numberFormat !== "") {
+          console.log(`Style: ${element.numberFormat}`);
+          tblColRange.numberFormat = element.numberFormat;
+          // await ctx.sync();
+        }
+
+        if (element.visible !== undefined && element.visible !== null) {
+          console.log(`Visible: ${element.visible}`);
+          if (!element.visible && hideLessRelevants)
+          {
+            tblColRange.columnHidden = true;
+          }  
+          // await ctx.sync();
+        }
+
+        if (element.autosizeColumn !== undefined && element.autosizeColumn !== null) {
+          console.log(`autosizeColumn: ${element.autosizeColumn}`);
+          if (element.autosizeColumn==="true")  tblColRange.format.autofitColumns();
+          // await ctx.sync();
+        }
+
+        await ctx.sync();
+        console.log(`removing tracked objects for ${element.columnName}`);
+        ctx.trackedObjects.remove([tblCol, tblColRange]);;               
     }
 
     return true;
@@ -642,9 +550,6 @@ async function validateCDLStructure(json: any): Promise<boolean> {
     return false;
   }
 }
-
-
-
 
 async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils> 
 {
@@ -670,8 +575,13 @@ async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils>
    // Iterate through the columns
    for (const column of columns.items) 
    {
-      var r: Excel.Range = column.getRange();
-      r.load(['style', 'numberFormat'])
+      const headerCell:Excel.Range = column.getRange().getCell(0, 0);
+      headerCell.load(["columnHidden"]);
+      await ctx.sync();
+      const isVisible = headerCell.columnHidden;
+
+      var r: Excel.Range = column.getDataBodyRange();
+      r.load(['style', 'numberFormat', 'columnHidden']);
       r.format.load(['format','horizontalAlignment', 'verticalAlignment', 'columnWidth', 'indentLevel', 'style', 'numberFormat']);
       await ctx.sync();
        // Access the loaded properties
@@ -684,6 +594,7 @@ async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils>
        const style = r.style;
        const numberFormat = r.numberFormat[0].toString(); //numberFormat is an array of all the cells format, we'll check just the first row
        const autosizeColumn = false;
+       const visible:boolean = !headerCell.columnHidden;
        
        // Create a column definition object and add it to your array
        const colDef: ColumnDefinition = {
@@ -695,7 +606,7 @@ async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils>
          indentLevel:indentLevel,
          style:style,
          numberFormat:numberFormat,
-         visible: true, // Set this to whatever your default is
+         visible: visible, // Set this to whatever your default is
          autosizeColumn:false
        };
        colDefinitions.addColumn(colDef);
@@ -704,11 +615,34 @@ async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils>
   return colDefinitions;
 }
 
+async function getJsonData(): Promise<any> 
+{
+  var jsonType:string = await typeCDL();
+  var response;
+
+  switch (jsonType) {
+    case "rave-diag-log":
+      response = await fetch("./RaveCDLconfig.json");
+      break;
+
+    case "exo-cdl":
+      response = await fetch("./EXOCDLconfig.json");
+      break;
+
+    default:
+      response = await fetch("./RaveCDLconfig.json");
+      break;
+  }
+  
+  const jsonData = await response.json();
+  return jsonData;
+}
+
+//#endregion
 
 
 
-
-
+//#region Analysys
 async function PerformAnalysis(context) {
   await resetAnalysisInfo();
   await CheckNumberOfRows();
@@ -728,45 +662,45 @@ async function CheckNumberOfRows() {
   await ctx.sync();
 }
 
-
-async function freezeColumns(columnName: string)
-{
-    const column = tbl.columns.getItem(columnName);
-    sheet.freezePanes.freezeRows(1);
-    sheet.freezePanes.freezeColumns(3);
-    await ctx.sync();
-}
-
-
-
-
-
-
-
-
-async function getJsonData(): Promise<any> {
-  const response = await fetch("./RaveCDLconfig.json");
-  const jsonData = await response.json();
-  return jsonData;
-}
-
-
-
-
-
-
-
-
-
+//#endregion
 
 
 //#region Config section
 export async function createConfig()
 {
-    var err = await getJsonData();
+  myConsole.reset();
+  await Excel.run(async (context) => {
+    ctx = context;
+    sheet = context.workbook.worksheets.getActiveWorksheet();
+    tbl = sheet.tables.getItemOrNullObject("CDL");
+    tblRange = tbl.getRange();
+    jsonConfigUtils = new JsonConfigUtils();
+    
+    await context.sync() ;
 
-      var colDefs:JsonConfigUtils =  await createColumnDefinitionsFromTable();
-      document.getElementById("jsonConfig").textContent = colDefs.convertColumnDefinitionsToJson();
+    await  CreateTable(context, true); //keep formatting for json creation
+
+    var colDefs:JsonConfigUtils =  await createColumnDefinitionsFromTable();
+    document.getElementById("jsonConfig").textContent = colDefs.convertColumnDefinitionsToJson();
+  });
+  
+}
+
+
+export async function testJsonFile()
+{
+  myConsole.reset();
+  var tempJson = await getJsonData();
+  document.getElementById("jsonConfig").textContent = JSON.stringify(tempJson);
+  var isTableValid:boolean = await validateCDLStructure(tempJson);
+}
+
+export async function testConfig()
+{
+  myConsole.reset();
+  var textbox:any = document.getElementById("jsonConfig");
+  var tempJson = textbox.value;
+  var isTableValid:boolean = await validateCDLStructure(tempJson);
 }
 //#endregion
 
@@ -777,11 +711,16 @@ export async function run() {
       /**
        * Insert your Excel code here
        */
-      
+      myConsole.reset();
       await showSpinner(true);
       await resetAnalysisInfo();
       await AddMessage("Starting Processing");
-      
+
+      for (let index = 0; index < 50; index++) {
+        myConsole.log("mensagem de teste");
+      }
+
+
 
       ctx = context;
       sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -793,10 +732,7 @@ export async function run() {
       sheet.getRange().conditionalFormats.clearAll();
       tbl.clearFilters();
       sheet.freezePanes.unfreeze();
-      
-  
-
-      await context.sync() ;
+      await context.sync();
 
 
       await  CreateTable(context).then(()=>{AddMessage("Create Table Done")});
