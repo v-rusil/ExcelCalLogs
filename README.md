@@ -12,7 +12,13 @@ npm install
 code .
 npm run start
 ```
+If you run into issues with JQuery, you may not have the Jquery package installed, then run below at command line
+This should install JQuery dependency and solve the issue.
+```
+npm i --save-dev @types/jquery
+```
 
+```
 Above steps will start web server and excel, with a toolbar button labeled "Show Taskpane"
 Code . will start Visual Studio Code to edit / browse add-in code  
 ```
