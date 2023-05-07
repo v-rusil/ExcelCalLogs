@@ -3,11 +3,16 @@
  * See LICENSE in the project root for license information.
  */
 
+import { ConditionalFormat, enumCellValueOperator, enumConditionalFormatTextOperator, enumConditionalFormatType } from './ConditionalFormats';
+import { FilterDefinition } from './FilterDefinitions';
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
 import { JsonConfigUtils } from './jsonConfigUtils';
 import { myConsole } from "./myConsole";
 
+
 /* global console, document, Excel, Office */
+module.exports = ctx;
+
 
 var ctx:Excel.RequestContext
 
@@ -15,6 +20,16 @@ var tbl:Excel.Table;
 var sheet:Excel.Worksheet;
 var tblRange:Excel.Range;
 var jsonConfigUtils:JsonConfigUtils;
+
+
+//#region Constants
+// Organizer table styles and checkbox
+const organizerTableStyle:string = "TableStyleLight10";
+const attendeeTableStyle:string = "TableStyleLight13";
+
+const organizerTabColor:string = "#FFA500"; //orange
+const attendeeTabColor:string = "#ADD8E6";  //light blue
+//#endregion
 
 
 //#region JSON properties of Callog
@@ -65,9 +80,7 @@ function typeCDL(): string {
   return selectElement.value;
 }
 
-// Organizer table styles and checkbox
-var organizerTableStyle:string = "TableStyleLight10";
-var attendeeTableStyle:string = "TableStyleLight13";
+
 async function isOrganizer():Promise<boolean>
 {
   const checkbox = document.getElementById("isOrganizer") as HTMLInputElement;
@@ -103,6 +116,7 @@ async function showSpinner(show:boolean)
 function AddMessage(message: string) {
   const p = document.getElementById("statusMessage");
   p.textContent = message;
+  myConsole.log(message);
 }
 
 enum enumTypeAnalysis
@@ -173,6 +187,7 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
     // Add the <a> element to the analysis div
     analysisDiv.appendChild(aElement);
   
+    myConsole.log(message);
   }
 
   async function resetAnalysisInfo()
@@ -189,8 +204,6 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
     await ctx.sync();
 }
 //#endregion
-
-
 
 //#region Init OfficeJS
 Office.onReady((info) => {
@@ -214,6 +227,44 @@ Office.onReady((info) => {
 
 //#endregion
 
+
+//#region WorkSheet Custom Properties
+async function resetCustomProperties()
+{
+  
+  sheet.customProperties.load();
+  await ctx.sync();
+
+  // Iterate over all custom properties and delete them
+  for (const key in sheet.customProperties.items) {
+    if (sheet.customProperties.items.hasOwnProperty(key)) {
+      const customProperty = sheet.customProperties.items[key];
+      customProperty.delete();
+    }
+  }
+  await ctx.sync();
+}
+
+async function addCustomProperty(key:string, value:string):Promise<Excel.CustomProperty>
+{
+    sheet.load(["customProperties"]);await ctx.sync();
+    sheet.customProperties.add(key, value); await ctx.sync();
+    sheet.customProperties.load(["key", "value", "type"]);await ctx.sync();
+    var cp:any = sheet.customProperties.getItemOrNullObject(key); await ctx.sync();
+    return cp as Excel.CustomProperty;
+}
+
+async function GetCustomPropertyValue(key:string):Promise<string>
+{
+    sheet.load(["customProperties"]);await ctx.sync();
+    sheet.customProperties.load(["items"]);await ctx.sync();
+    var cp = sheet.customProperties.getItemOrNullObject(key); await ctx.sync();
+    cp.load(["key", "value", "type"]);await ctx.sync();
+    return cp.value ?? "" ;
+}
+//#endregion
+
+
 //#region Create Table
 async function CreateTable(context, keepFormats:boolean=false) {
   try {
@@ -227,7 +278,7 @@ async function CreateTable(context, keepFormats:boolean=false) {
     let tblRange = tbl.getRange();
     await context.sync().catch((error)=>{
       addAnalysisInfo("error",0,error,"create table", enumTypeAnalysis.Danger);
-      console.log(error);
+      AddMessage(error);
     }) ;
 
     if (tbl.isNullObject) {
@@ -240,31 +291,58 @@ async function CreateTable(context, keepFormats:boolean=false) {
     if (keepFormats) return; //just create table and leave
 
     tblRange.clear("Formats");
+    resetCustomProperties();
     await context.sync();
 
     var _isOrganizer = await isOrganizer();
     if (_isOrganizer) {
       tbl.style = organizerTableStyle;  
+      sheet.tabColor = organizerTabColor;
+      addCustomProperty("Organizer", "true");
     }
     else{
       tbl.style = attendeeTableStyle;  
+      sheet.tabColor = attendeeTabColor;
+      
+      addCustomProperty("Organizer", "false");
     }
-    
+
     tbl.load('tableStyle');
     tbl.columns.load();
     tblRange = tbl.getRange();
     await context.sync();
     
   } catch (error) {
-    addAnalysisInfo("create Table", 0, `Error creating table ${error}`, "Create Table", enumTypeAnalysis.Danger );
     console.error(error);
-    AddMessage(error);
+    addAnalysisInfo("create Table", 0, `Error creating table ${error}`, "Create Table", enumTypeAnalysis.Danger );     
   }
 }
 
 //#endregion 
 
 //#region Filters methods
+async function ClearFilters(ColumnName:string, value:string)
+{
+  tbl.clearFilters();
+  AddMessage(`Table filters cleared`);  
+}
+
+async function SetFilter(ColumnName:string, value:string)
+{
+  tbl.columns.load();
+  await ctx.sync();
+  let columnFilter = tbl.columns.getItemOrNullObject(ColumnName).filter;
+  await ctx.sync();
+  columnFilter.apply({
+    filterOn: Excel.FilterOn.values,
+    values: [value]
+  });
+await ctx.sync();
+
+
+AddMessage(`Column ${ColumnName} Filtered for value ${value}`);
+}
+
 async function FilterIgnorable(value:string) {
   tbl.columns.load();
   await ctx.sync();
@@ -275,7 +353,9 @@ async function FilterIgnorable(value:string) {
     values: [value]
   });
 await ctx.sync();
-console.log("Cells filtered. ");
+
+
+AddMessage("Cells filtered. ");
 }
 
 //#endregion
@@ -390,8 +470,9 @@ async function HighLightCreates(context):Promise<number>
   };
 
   await context.sync();
-
-  return await CountFilterOccurrences(conditionalFormat.getRange());
+  var r:Excel.Range = conditionalFormat.getRange();
+  var n: number =  await CountFilterOccurrences(r);
+  return n;
 
 }
 
@@ -400,9 +481,15 @@ async function HighLightCreates(context):Promise<number>
 //#region Count filter Occurrences
 async function CountFilterOccurrences( filterRange:Excel.Range ):Promise<number>
 {
+
+// var visibleTableRange: Excel.RangeView = tbl.getDataBodyRange().getVisibleView();
+// visibleTableRange.load(["rowCount"]); await ctx.sync();
+// var rows:number = visibleTableRange.rowCount;
+// console.log(`rows Filtered  %d`, rows);
+
   await ctx.sync();
   // Get the range of cells affected by the conditional format
-  const affectedRange = await filterRange.getIntersectionOrNullObject(tbl.getRange());
+  const affectedRange = await filterRange.getIntersectionOrNullObject(tbl.getRange()); await ctx.sync();
   affectedRange.load(["rowCount"]); await ctx.sync();
   // Get the number of rows affected by the conditional format
   const rowCount = affectedRange ? affectedRange.rowCount : 0;
@@ -422,9 +509,10 @@ function isJSONString(str: any): boolean {
   }
 }
 
-async function validateCDLStructure(json: any, hideLessRelevants:boolean=false): Promise<boolean> {
+async function applyJsonConfig(json: any, hideLessRelevants:boolean=false): Promise<boolean> {
   
   var jsonArray;
+  var  retval:boolean=true;
   
   if (typeof json === "string") {
     if (!isJSONString(json)) {
@@ -437,25 +525,31 @@ async function validateCDLStructure(json: any, hideLessRelevants:boolean=false):
     throw new Error("Parameter must be a string or an object");
   }
   
-  if (!Array.isArray(jsonArray)) 
+  if (typeof jsonArray != "object") 
   {
-        throw new Error("Input JSON is not an array.");
+    throw new Error("Input JSON is not an Object.");
   }
 
+  retval = retval && await applyJsonColDefinitions(jsonArray, hideLessRelevants);
+  retval = retval && await applyJSONHighlights(jsonArray);
+  retval = retval && await applyJSONFilters(jsonArray);
+  return retval;
+}
+
+async function applyJsonColDefinitions(jsonArray:any, hideLessRelevants:boolean=false): Promise<boolean>
+{
   try 
   {
-    
-    // tbl.columns.load();
-    // await ctx.sync();
+    //jsonArray = JSON.parse(json);
 
-    for (const element of jsonArray) 
+    for (const element of jsonArray.columns) 
     {
         var tblCol:Excel.TableColumn;
         var tblColRange:Excel.Range;
         var tblColFormat:Excel.RangeFormat;
         if (element.columnName == undefined || element.columnName == "") 
         {
-          console.log("Skipping json element as it is undefined ColumnName");
+          AddMessage("Skipping json element as it is undefined ColumnName");
           continue;
         }
 
@@ -471,59 +565,67 @@ async function validateCDLStructure(json: any, hideLessRelevants:boolean=false):
         if (tblCol.isNullObject) 
         {
           if (element.isMandatory !== undefined && element.isMandatory !== "" && element.isMandatory == "false") {
-            console.log(`isMandatory: ${element.isMandatory}`);
+            AddMessage(`isMandatory: ${element.isMandatory}`);
             continue;
           }
-          console.log(`Column Name does not exist: ${element.columnName}`);
+          AddMessage(`Column Name does not exist: ${element.columnName}`);
           addAnalysisInfo("columnName",0,`Column Name does not exist: ${element.columnName}`, "ValidateJSONStruct", enumTypeAnalysis.Danger);
           return false;
         }
 
 
-        console.log(`Column Name: ${element.columnName}`);
+        AddMessage(`Column Name: ${element.columnName}`);
 
         if (element.style !== undefined && element.style !== "") {
           //style must be the first prop to set as it overrides all the below props
-          console.log(`Style: ${element.style}`);
+          AddMessage(`Style: ${element.style}`);
           tblColRange.style = element.style;
           // await ctx.sync();
         }
 
+        if (element.searchFor !== undefined && element.searchFor !== "") {
+          //Replacing values before applying remaining styles (dates come with Z )
+          AddMessage(`SearchFor/ReplaceWith: ${element.searchFor} / ${element.ReplaceWith}`);
+          const criteria: Excel.ReplaceCriteria = {
+            completeMatch: false, /* Use a complete match to skip cells that already say "okay". */
+            matchCase: true /* Ignore case when comparing strings. */
+          };
+          tblColRange.replaceAll(element.searchFor, element.replaceWith, criteria);
+          await ctx.sync();
+        }
+      
+
         if (element.horizontalAlignment !== undefined && element.horizontalAlignment !== "") {
-          console.log(`Horizontal Alignment: ${element.horizontalAlignment}`);
+          AddMessage(`Horizontal Alignment: ${element.horizontalAlignment}`);
           tblColRange.format.horizontalAlignment =jsonConfigUtils.convertToHorizontalAlignment(element.horizontalAlignment);
-          // await ctx.sync().catch((error) => {
-          //                                       console.log(`Error: ${error}`);
-          //                                     });
         }
   
         if (element.verticalAlignment !== undefined && element.verticalAlignment !== "") {
-            console.log(`Vertical Alignment: ${element.verticalAlignment}`);
+            AddMessage(`Vertical Alignment: ${element.verticalAlignment}`);
             tblColRange.format.verticalAlignment = jsonConfigUtils.convertToVerticalAlignment(element.verticalAlignment);
-            // await ctx.sync();
         }
   
         if (element.columnWidth !== undefined && element.columnWidth !== null) {
-          console.log(`Column Width: ${element.columnWidth}`);
+          AddMessage(`Column Width: ${element.columnWidth}`);
           tblColRange.format.columnWidth = element.columnWidth;
           // await ctx.sync();
         }
   
         if (element.indentLevel !== undefined && element.indentLevel !== null) {
-          console.log(`Indent Level: ${element.indentLevel}`);
+          AddMessage(`Indent Level: ${element.indentLevel}`);
           tblColRange.format.indentLevel = element.indentLevel;
           // await ctx.sync();
         }
   
        
         if (element.numberFormat !== undefined && element.numberFormat !== "") {
-          console.log(`Style: ${element.numberFormat}`);
+          AddMessage(`Style: ${element.numberFormat}`);
           tblColRange.numberFormat = element.numberFormat;
           // await ctx.sync();
         }
 
         if (element.visible !== undefined && element.visible !== null) {
-          console.log(`Visible: ${element.visible}`);
+          AddMessage(`Visible: ${element.visible}`);
           if (!element.visible && hideLessRelevants)
           {
             tblColRange.columnHidden = true;
@@ -532,13 +634,13 @@ async function validateCDLStructure(json: any, hideLessRelevants:boolean=false):
         }
 
         if (element.autosizeColumn !== undefined && element.autosizeColumn !== null) {
-          console.log(`autosizeColumn: ${element.autosizeColumn}`);
+          AddMessage(`autosizeColumn: ${element.autosizeColumn}`);
           if (element.autosizeColumn==="true")  tblColRange.format.autofitColumns();
           // await ctx.sync();
         }
 
         await ctx.sync();
-        console.log(`removing tracked objects for ${element.columnName}`);
+        AddMessage(`removing tracked objects for ${element.columnName}`);
         ctx.trackedObjects.remove([tblCol, tblColRange]);;               
     }
 
@@ -549,12 +651,145 @@ async function validateCDLStructure(json: any, hideLessRelevants:boolean=false):
     console.error(`Error traversing JSON array: ${error}`);
     return false;
   }
+
 }
 
-async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils> 
+async function applyJSONHighlights(jsonArray) : Promise<boolean>
 {
-  var colDefinitions:JsonConfigUtils = new JsonConfigUtils();
+    var retval:boolean=true;
+    console.log(jsonArray);
 
+    for (const element of jsonArray.conditionalFormats) 
+    {
+      
+      var e:ConditionalFormat = element;
+      
+
+      switch (e.Type) {
+        case enumConditionalFormatType.ColorScale:
+          await createConditionalFormatColorScale(e);
+          break;
+
+        case enumConditionalFormatType.ContainsText:
+          await createConditionalFormatContainsText(e);
+          break;
+
+        case enumConditionalFormatType.CellValue:
+          break;
+
+        case enumConditionalFormatType.Custom:
+          break;
+          
+      
+        default:
+          break;
+      }
+    }
+
+    return retval;
+}
+
+
+async function applyJSONFilters(jsonArray) : Promise<boolean>
+{
+  var retval:boolean=true;
+  console.log(jsonArray);
+
+  for (const element of jsonArray.filterDefinitions) 
+  {
+    var e:FilterDefinition = element;
+    
+    if (e.FilterActiveByUIOnly == false) {
+      createColumnFilter(e);
+    }
+  }
+  return retval;
+}
+
+
+
+async function createConditionalFormatColorScale(cf:ConditionalFormat): Promise<boolean>
+{
+    AddMessage(`Formatting column ${cf.FriendlyName}`);
+    var retval:boolean = true;
+    const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(cf.ColumnName);
+
+    col.load(["isNullObject"]); await ctx.sync();
+    if (col.isNullObject) {
+      return false;
+    }
+
+    const r:Excel.Range = col.getDataBodyRange();
+    const excelCF = r.conditionalFormats.add(Excel.ConditionalFormatType.colorScale);
+    excelCF.load(["colorScale"]); await ctx.sync();
+    excelCF.colorScale.criteria.maximum.color = cf.ColorScaleColorMaximum;
+    excelCF.colorScale.criteria.minimum.color = cf.ColorScaleColorMinimum;
+    await ctx.sync();
+    return retval;
+}
+
+async function createConditionalFormatContainsText(cf:ConditionalFormat): Promise<boolean>
+{
+  AddMessage(`Creating Conditional Format ${cf.FriendlyName}`);
+  var retval:boolean = true;
+  const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(cf.ColumnName);
+
+  col.load(["isNullObject"]); await ctx.sync();
+  if (col.isNullObject) {
+    return false;
+  }
+
+  const r:Excel.Range = col.getDataBodyRange();
+  const excelCF = r.conditionalFormats.add(Excel.ConditionalFormatType.containsText);
+  excelCF.load(["textComparison", "format", "format/fill", "format/font"]); await ctx.sync();
+  
+  excelCF.textComparison.rule = {
+    operator: Excel.ConditionalTextOperator.contains,
+    text: cf.ContainsTextSearch
+  };
+  
+  if(cf.FillColor !== undefined && cf.FillColor !== null && cf.FillColor.toLowerCase() !== "null") {
+    excelCF.textComparison.format.fill.color = cf.FillColor;
+  }
+
+  if(cf.FontColor !== undefined && cf.FontColor !== null && cf.FontColor.toLowerCase() !== "null") {
+    excelCF.textComparison.format.font.color = cf.FontColor;
+  }
+
+  await ctx.sync();
+  return retval;
+
+}
+
+async function createColumnFilter(f:FilterDefinition): Promise<boolean>
+{
+    AddMessage(`Creating Filter ${f.FriendlyName}`);
+    var retval:boolean = true;
+
+    const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(f.ColumnName);
+
+    col.load(["isNullObject"]); await ctx.sync();
+    if (col.isNullObject) {
+      return false;
+    }
+  
+    const r:Excel.Range = col.getDataBodyRange();
+
+    const excelFilter = col.filter;
+    await ctx.sync();
+    excelFilter.apply({
+      filterOn: Excel.FilterOn.values,
+      values: [f.FilterValue]
+    });
+  await ctx.sync();
+
+  return retval;
+
+}
+
+async function createColumnDefinitionsFromTable(jsonConfigUtils:JsonConfigUtils): Promise<JsonConfigUtils> 
+{
+  
   // Get the table object from the global variable 'tbl'
   // Load all columns and their format properties
   const columns = tbl.columns.load([
@@ -606,14 +841,113 @@ async function createColumnDefinitionsFromTable(): Promise<JsonConfigUtils>
          indentLevel:indentLevel,
          style:style,
          numberFormat:numberFormat,
-         visible: visible, // Set this to whatever your default is
-         autosizeColumn:false
+         visible: visible, 
+         autosizeColumn:false,
+         searchFor:"",
+         replaceWith:""
        };
-       colDefinitions.addColumn(colDef);
+       jsonConfigUtils.addColumn(colDef);
    }
 
-  return colDefinitions;
+  return jsonConfigUtils;
 }
+
+async function createFiltersFromTable(jsonConfig:JsonConfigUtils): Promise<any>
+{
+  ctx.trackedObjects.add(tbl); await ctx.sync();
+  tblRange.conditionalFormats.load();await ctx.sync();
+  const conditionalFormats = tblRange.conditionalFormats;await ctx.sync();
+  const results = [];
+
+  for (const column of tbl.columns.items) 
+   {
+      column.load(["name", "filter"]);await ctx.sync();
+
+      const filter = column.filter;
+
+      if (filter.criteria != null) {
+        const randomNumber = Math.ceil(Math.random() * 999999);
+        const columnName:string = column.name;
+        const key:string = columnName + randomNumber.toString();
+        var values:string;
+        if (filter.criteria.filterOn == Excel.FilterOn.custom) 
+        {
+          const criterion2 = filter.criteria.criterion2 ?? '';
+          const correctedString = criterion2.toString() !== '' ? `, ${criterion2.toString()}` : '';
+
+          values = filter.criteria.criterion1.toString() + correctedString;         
+        }
+        else  
+        {
+           values = filter.criteria.values.join(", ") ;
+        }
+        jsonConfig.addFilterCondition(columnName, values,key);
+        
+      }
+
+   }
+}
+
+async function createConditionalFormatsFromTable(jsonConfig:JsonConfigUtils): Promise<any[]> {
+  ctx.trackedObjects.add(tbl); await ctx.sync();
+  tblRange.conditionalFormats.load();await ctx.sync();
+  const conditionalFormats = tblRange.conditionalFormats;await ctx.sync();
+  const results = [];
+  
+  
+  for (const column of tbl.columns.items) 
+   {
+    const cfs:Excel.ConditionalFormatCollection = column.getDataBodyRange().conditionalFormats;
+    cfs.load("items");await ctx.sync();
+    for (const cf of cfs.items) {
+        const randomNumber = Math.ceil(Math.random() * 999999);
+        AddMessage(`Column ${column.name} has CF of type ${cf.type}`);  
+        
+        switch (cf.type) 
+        {
+            case Excel.ConditionalFormatType.cellValue:
+              cf.cellValue.load(["rule", "format", "format/font", "format/fill"]);await ctx.sync();
+              jsonConfig.addConditionalFormatCellValue(`${column.name} Cell Value ${cf.cellValue.rule.formula1}`, 
+                            column.name, false,false,
+                            "Normal", cf.cellValue.format.font.color, cf.cellValue.format.fill.color,
+                             cf.cellValue.rule.formula1,cf.cellValue.rule.formula2,
+                             CellValueOperatorToJsonEnum(cf.cellValue.rule.operator));
+
+              break;
+            case Excel.ConditionalFormatType.containsText:
+              cf.textComparison.load(["rule", "format", "format/font", "format/fill"]);await ctx.sync();
+              
+              jsonConfig.addConditionalFormatContainsText(`${column.name} Contains Text ${cf.textComparison.rule.text}`, 
+                            column.name, false,false,
+                            "Normal",cf.textComparison.format.fill.color,cf.textComparison.format.font.color,
+                            cf.textComparison.rule.text, 
+                            cf.textComparison.rule.operator == Excel.ConditionalTextOperator.contains ? 
+                                                                enumConditionalFormatTextOperator.Contains : 
+                                                                enumConditionalFormatTextOperator.NotContains);
+              break;
+            case Excel.ConditionalFormatType.custom:
+              break;
+            case Excel.ConditionalFormatType.colorScale:
+              cf.colorScale.load(["rule", "format", "format/font", "format/fill", "criteria"]);await ctx.sync();
+              
+              jsonConfig.addConditionalFormatColorScale(`${column.name} Color Scale ${cf.colorScale.criteria.maximum.color} Down to ${cf.colorScale.criteria.minimum.color}`, 
+                            column.name, false,false,
+                            "Normal",null,null,
+                            cf.colorScale.criteria.minimum.color, cf.colorScale.criteria.maximum.color);
+              break;
+            case Excel.ConditionalFormatType.dataBar:
+              break;
+              
+          default:
+            break;
+        }
+    }
+    
+   }
+  
+return results;
+}
+
 
 async function getJsonData(): Promise<any> 
 {
@@ -644,7 +978,7 @@ async function getJsonData(): Promise<any>
 
 //#region Analysys
 async function PerformAnalysis(context) {
-  await resetAnalysisInfo();
+  //await resetAnalysisInfo();
   await CheckNumberOfRows();
   await context.sync();
 }
@@ -676,12 +1010,20 @@ export async function createConfig()
     tblRange = tbl.getRange();
     jsonConfigUtils = new JsonConfigUtils();
     
+
+    await testJsonUtil();
+
     await context.sync() ;
 
     await  CreateTable(context, true); //keep formatting for json creation
 
-    var colDefs:JsonConfigUtils =  await createColumnDefinitionsFromTable();
-    document.getElementById("jsonConfig").textContent = colDefs.convertColumnDefinitionsToJson();
+    await createColumnDefinitionsFromTable(jsonConfigUtils);
+    await createConditionalFormatsFromTable(jsonConfigUtils);
+    await createFiltersFromTable(jsonConfigUtils);
+    document.getElementById("jsonConfig").textContent = jsonConfigUtils.getValue();
+
+    
+
   });
   
 }
@@ -692,7 +1034,7 @@ export async function testJsonFile()
   myConsole.reset();
   var tempJson = await getJsonData();
   document.getElementById("jsonConfig").textContent = JSON.stringify(tempJson);
-  var isTableValid:boolean = await validateCDLStructure(tempJson);
+  var isTableValid:boolean = await applyJsonConfig(tempJson);
 }
 
 export async function testConfig()
@@ -700,7 +1042,7 @@ export async function testConfig()
   myConsole.reset();
   var textbox:any = document.getElementById("jsonConfig");
   var tempJson = textbox.value;
-  var isTableValid:boolean = await validateCDLStructure(tempJson);
+  var isTableValid:boolean = await applyJsonConfig(tempJson);
 }
 //#endregion
 
@@ -715,12 +1057,6 @@ export async function run() {
       await showSpinner(true);
       await resetAnalysisInfo();
       await AddMessage("Starting Processing");
-
-      for (let index = 0; index < 50; index++) {
-        myConsole.log("mensagem de teste");
-      }
-
-
 
       ctx = context;
       sheet = context.workbook.worksheets.getActiveWorksheet();
@@ -739,7 +1075,7 @@ export async function run() {
       
 
       jsonLog = await getJsonData();
-      var isTableValid:boolean = await validateCDLStructure(jsonLog);
+      var isTableValid:boolean = await applyJsonConfig(jsonLog);
       if (!isTableValid) {
         addAnalysisInfo("CDL Invalid", 0, "CDL Structure is invalid (check previous exceptions)", "CDLInvalid", enumTypeAnalysis.Danger);
         showSpinner(false);
@@ -755,15 +1091,15 @@ export async function run() {
       // await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
 
       //highlight section
-      await HighlightIgnorable().then(()=>{AddMessage("Highlight Ignorable Done")});
-      await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
-      await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
+      // await HighlightIgnorable().then(()=>{AddMessage("Highlight Ignorable Done")});
+      // await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
+      // await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
       
-      //await addAnalysisInfo("CRA Found", rowCount, "CRA Events were found, meaning calendar state was not 100%","HighlightCRA",enumTypeAnalysis.Warning);
-      await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
+      // //await addAnalysisInfo("CRA Found", rowCount, "CRA Events were found, meaning calendar state was not 100%","HighlightCRA",enumTypeAnalysis.Warning);
+      // await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
 
       //Filters section
-      await FilterIgnorable("FALSE").then(()=>{AddMessage("Filter Ignorable Done")});
+      //await FilterIgnorable("FALSE").then(()=>{AddMessage("Filter Ignorable Done")});
 
       await context.sync();
       
@@ -788,4 +1124,8 @@ export async function run() {
   
 }
 
+
+function CellValueOperatorToJsonEnum(operator: string): enumCellValueOperator {
+  throw new Error('Function not implemented.');
+}
 
