@@ -21,5 +21,7 @@ export enum EnumColumnHorizontalAlignment {
     numberFormat: string;
     visible: boolean;
     autosizeColumn?: boolean;
+    searchFor?:string;
+    replaceWith?:string;
   }
   
