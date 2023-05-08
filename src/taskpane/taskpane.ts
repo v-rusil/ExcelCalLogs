@@ -1011,8 +1011,6 @@ export async function createConfig()
     jsonConfigUtils = new JsonConfigUtils();
     
 
-    await testJsonUtil();
-
     await context.sync() ;
 
     await  CreateTable(context, true); //keep formatting for json creation

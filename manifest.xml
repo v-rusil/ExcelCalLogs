@@ -16,7 +16,6 @@
   </AppDomains>
   <Hosts>
     <Host Name="Workbook"/>
-    <Host Name="Mailbox" />
   </Hosts>
   <DefaultSettings>
     <SourceLocation DefaultValue="https://localhost:3000/taskpane.html"/>
