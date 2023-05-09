@@ -724,5 +724,12 @@
         }
     ],
     "filterDefinitions": [
+        {
+            "ColumnName": "Ignorable",
+            "FilterActiveByUIOnly": false,
+            "FilterKey": "Ignorable697408",
+            "FilterValue": "FALSE",
+            "FriendlyName": "Ignorable filter =FALSE"
+            }
     ]
 }
