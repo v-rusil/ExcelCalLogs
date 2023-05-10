@@ -23,7 +23,7 @@
             "isMandatory": true,
             "numberFormat": "mm/dd/yyyy hh:mm:ss",
             "replaceWith": "",
-            "searchFor": "",
+            "searchFor": "Z",
             "style": "Normal",
             "verticalAlignment": "Bottom",
             "visible": true
@@ -261,7 +261,7 @@
             "isMandatory": true,
             "numberFormat": "mm/dd/yyyy hh:mm:ss",
             "replaceWith": "",
-            "searchFor": "",
+            "searchFor": "Z",
             "style": "Normal",
             "verticalAlignment": "Bottom",
             "visible": true
@@ -275,7 +275,7 @@
             "isMandatory": true,
             "numberFormat": "mm/dd/yyyy hh:mm:ss",
             "replaceWith": "",
-            "searchFor": "",
+            "searchFor": "Z",
             "style": "Normal",
             "verticalAlignment": "Bottom",
             "visible": false
