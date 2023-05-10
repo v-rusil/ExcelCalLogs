@@ -187,7 +187,7 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
     // Add the <a> element to the analysis div
     analysisDiv.appendChild(aElement);
   
-    myConsole.log(message);
+    AddMessage(message);
   }
 
   async function resetAnalysisInfo()
@@ -657,7 +657,7 @@ async function applyJsonColDefinitions(jsonArray:any, hideLessRelevants:boolean=
 async function applyJSONHighlights(jsonArray) : Promise<boolean>
 {
     var retval:boolean=true;
-    console.log(jsonArray);
+    AddMessage(jsonArray);
 
     for (const element of jsonArray.conditionalFormats) 
     {
@@ -693,7 +693,7 @@ async function applyJSONHighlights(jsonArray) : Promise<boolean>
 async function applyJSONFilters(jsonArray) : Promise<boolean>
 {
   var retval:boolean=true;
-  console.log(jsonArray);
+  AddMessage(jsonArray);
 
   for (const element of jsonArray.filterDefinitions) 
   {
@@ -847,6 +847,9 @@ async function createColumnDefinitionsFromTable(jsonConfigUtils:JsonConfigUtils)
          replaceWith:""
        };
        jsonConfigUtils.addColumn(colDef);
+
+       AddMessage(`Adding column ${name}/format ${numberFormat}/ style ${style}`);
+       
    }
 
   return jsonConfigUtils;
@@ -882,6 +885,8 @@ async function createFiltersFromTable(jsonConfig:JsonConfigUtils): Promise<any>
            values = filter.criteria.values.join(", ") ;
         }
         jsonConfig.addFilterCondition(columnName, values,key);
+
+        AddMessage(`Add filter ${columnName} / ${values} / ${key}`);
         
       }
 
@@ -1020,8 +1025,6 @@ export async function createConfig()
     await createFiltersFromTable(jsonConfigUtils);
     document.getElementById("jsonConfig").textContent = jsonConfigUtils.getValue();
 
-    
-
   });
   
 }
@@ -1102,7 +1105,7 @@ export async function run() {
       await context.sync();
       
       await PerformAnalysis(context).then(()=>{AddMessage("Perform Analysis Done")});
-      console.log(`Processing done.`);
+      AddMessage(`Processing done.`);
       
       AddMessage("Done!");
       showSpinner(false);
@@ -1124,6 +1127,7 @@ export async function run() {
 
 
 function CellValueOperatorToJsonEnum(operator: string): enumCellValueOperator {
-  throw new Error('Function not implemented.');
+  //throw new Error('Function not implemented.');
+  return enumCellValueOperator.EQ;
 }
 
