@@ -266,27 +266,53 @@ async function GetCustomPropertyValue(key:string):Promise<string>
 
 
 //#region Create Table
-async function CreateTable(context, keepFormats:boolean=false) {
+async function CreateTable(context, keepFormats:boolean=false) : Promise<boolean>
+{ 
   try {
+
+    sheet.load(["tables"]); await ctx.sync();
+
+    const tblCount = sheet.tables.getCount(); await ctx.sync();
+    if (tblCount.value > 1) {
+      addAnalysisInfo("CreateTable Error", tblCount.value,`There is more than 1 table in the current worksheet. This is not supported. `,"None, or 1 table only supported",enumTypeAnalysis.Danger);
+      return false;
+    }
+
+    
+    if (tblCount.value == 1) 
+    {
+      AddMessage(`1 table found in current worksheet. Clearing formats`);
+      
+      tbl = sheet.tables.getItemAt(0); await ctx.sync();
+      tblRange = tbl.getRange(); await ctx.sync();
+      tblRange.clear("Formats"); await ctx.sync();
+      tbl.convertToRange();await ctx.sync();
+      resetCustomProperties();
+      await context.sync();
+      AddMessage(`Table cleared!`);
+    }
 
     // Define the range of cells you want to select
     const range = sheet.getUsedRange();
     range.load("address");
-    
-    // Create a table from the selected range
-    let tbl = sheet.tables.getItemOrNullObject("CDL");
-    let tblRange = tbl.getRange();
-    await context.sync().catch((error)=>{
-      addAnalysisInfo("error",0,error,"create table", enumTypeAnalysis.Danger);
-      AddMessage(error);
-    }) ;
+    await ctx.sync();
 
-    if (tbl.isNullObject) {
-      tbl = sheet.tables.add(range, true /* hasHeaders */); 
-      tbl.name = "CDL"; 
+    // // Create a table from the selected range
+    // tbl = sheet.tables.getItemOrNullObject("CDL");
+    // tblRange = tbl.getRange();
+    // await context.sync().catch((error) => {
+    //   addAnalysisInfo("error", 0, error, "create table", enumTypeAnalysis.Danger);
+    //   AddMessage(error);
+    // });
+
+    // if (tbl.isNullObject) {
+      const randomNumber = Math.ceil(Math.random() * 999999);
+      tbl = sheet.tables.add(range, true /* hasHeaders */); await ctx.sync();
+      // tbl.name = `CDL${randomNumber}`; 
+      // tbl.name = "CDLRS"; 
       tblRange=tbl.getRange();
       await context.sync();
-    }
+    // }
 
     if (keepFormats) return; //just create table and leave
 
@@ -311,10 +337,13 @@ async function CreateTable(context, keepFormats:boolean=false) {
     tbl.columns.load();
     tblRange = tbl.getRange();
     await context.sync();
+
+    return true;
     
   } catch (error) {
     console.error(error);
-    addAnalysisInfo("create Table", 0, `Error creating table ${error}`, "Create Table", enumTypeAnalysis.Danger );     
+    addAnalysisInfo("create Table", 0, `Error creating table ${error}`, "Create Table", enumTypeAnalysis.Danger );   
+    return false;  
   }
 }
 
@@ -1061,13 +1090,14 @@ export async function run() {
 
       ctx = context;
       sheet = context.workbook.worksheets.getActiveWorksheet();
-      tbl = sheet.tables.getItemOrNullObject("CDL");
-      tblRange = tbl.getRange();
       jsonConfigUtils = new JsonConfigUtils();
 
+      // tbl = sheet.tables.getItemOrNullObject("CDL");
+      // tblRange = tbl.getRange();
+      // tbl.clearFilters();
       sheet.getRange().clear("Formats");
       sheet.getRange().conditionalFormats.clearAll();
-      tbl.clearFilters();
+      
       sheet.freezePanes.unfreeze();
       await context.sync();
 
