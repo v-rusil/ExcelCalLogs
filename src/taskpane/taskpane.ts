@@ -1047,7 +1047,11 @@ export async function createConfig()
 
     await context.sync() ;
 
-    await  CreateTable(context, true); //keep formatting for json creation
+    const validTable:boolean = await  CreateTable(context, true); //keep formatting for json creation
+
+    if (!validTable) {
+      return;
+    }
 
     await createColumnDefinitionsFromTable(jsonConfigUtils);
     await createConditionalFormatsFromTable(jsonConfigUtils);
@@ -1102,8 +1106,11 @@ export async function run() {
       await context.sync();
 
 
-      await  CreateTable(context).then(()=>{AddMessage("Create Table Done")});
-      
+      const validTable:boolean = await  CreateTable(context);
+      if (!validTable) {
+        return;
+      }
+      AddMessage("Create Table Done");
 
       jsonLog = await getJsonData();
       var isTableValid:boolean = await applyJsonConfig(jsonLog);
