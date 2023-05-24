@@ -16,7 +16,7 @@ export class JsonConfigUtils
   }
   
   getValue(): string {
-    return JSON.stringify(this);
+    return JSON.stringify(this, null, 2);
   }
 
   //#region Column Definitions

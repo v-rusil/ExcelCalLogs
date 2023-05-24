@@ -41,7 +41,7 @@ export enum enumConditionalFormatType {
   }
   
 
-  function CellValueOperatorToJsonEnum(op:Excel.ConditionalCellValueOperator) : enumCellValueOperator
+  export function CellValueOperatorToJsonEnum(op) : enumCellValueOperator
   {
       var retval:enumCellValueOperator = enumCellValueOperator.EQ;
       switch (op) {
@@ -70,4 +70,32 @@ export enum enumConditionalFormatType {
       return retval;
   }
 
+export function JsonEnumToCellValueOperator(op:enumCellValueOperator): Excel.ConditionalCellValueOperator
+{
+  var retval:Excel.ConditionalCellValueOperator = Excel.ConditionalCellValueOperator.equalTo;
+  switch (op) {
+      case enumCellValueOperator.EQ:
+        retval = Excel.ConditionalCellValueOperator.equalTo;
+        break;
+    
+      case enumCellValueOperator.BETWEEN:
+        retval = Excel.ConditionalCellValueOperator.between ;
+        break;
+
+      case enumCellValueOperator.GT:
+        retval = Excel.ConditionalCellValueOperator.greaterThan ;
+        break;
+  
+
+      case enumCellValueOperator.LT:
+        retval = Excel.ConditionalCellValueOperator.lessThan ;
+        break;
+
+  default:
+      retval = Excel.ConditionalCellValueOperator.equalTo;
+      break;
+  }
+
+  return retval;
+}
 

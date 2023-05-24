@@ -3,9 +3,10 @@
  * See LICENSE in the project root for license information.
  */
 
-import { ConditionalFormat, enumCellValueOperator, enumConditionalFormatTextOperator, enumConditionalFormatType } from './ConditionalFormats';
+import { CellValueOperatorToJsonEnum, ConditionalFormat, JsonEnumToCellValueOperator, enumCellValueOperator, enumConditionalFormatTextOperator, enumConditionalFormatType } from './ConditionalFormats';
 import { FilterDefinition } from './FilterDefinitions';
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
+import { tblToJson } from './excelUtils';
 import { JsonConfigUtils } from './jsonConfigUtils';
 import { myConsole } from "./myConsole";
 
@@ -198,10 +199,12 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
 
   async function freezeColumns(columnName: string)
 {
+    AddMessage(`Freezing upto column ${columnName} (3 hardcoded for now)`);
     const column = tbl.columns.getItem(columnName);
     sheet.freezePanes.freezeRows(1);
     sheet.freezePanes.freezeColumns(3);
     await ctx.sync();
+    AddMessage(`Columns Frozen successfully`);
 }
 //#endregion
 
@@ -281,10 +284,14 @@ async function CreateTable(context, keepFormats:boolean=false) : Promise<boolean
     
     if (tblCount.value == 1) 
     {
-      AddMessage(`1 table found in current worksheet. Clearing formats`);
-      
       tbl = sheet.tables.getItemAt(0); await ctx.sync();
       tblRange = tbl.getRange(); await ctx.sync();
+      if (keepFormats){
+        AddMessage(`1 table found in current worksheet. Keeping formats`);  
+        return true;
+      } 
+      
+      AddMessage(`1 table found in current worksheet. Clearing formats`);
       tblRange.clear("Formats"); await ctx.sync();
       tbl.convertToRange();await ctx.sync();
       resetCustomProperties();
@@ -297,24 +304,11 @@ async function CreateTable(context, keepFormats:boolean=false) : Promise<boolean
     range.load("address");
     await ctx.sync();
 
-    // // Create a table from the selected range
-    // tbl = sheet.tables.getItemOrNullObject("CDL");
-    // tblRange = tbl.getRange();
-    // await context.sync().catch((error) => {
-    //   addAnalysisInfo("error", 0, error, "create table", enumTypeAnalysis.Danger);
-    //   AddMessage(error);
-    // });
-
-    // if (tbl.isNullObject) {
-      const randomNumber = Math.ceil(Math.random() * 999999);
-      tbl = sheet.tables.add(range, true /* hasHeaders */); await ctx.sync();
-      // tbl.name = `CDL${randomNumber}`; 
-      // tbl.name = "CDLRS"; 
-      tblRange=tbl.getRange();
-      await context.sync();
-    // }
-
-    if (keepFormats) return; //just create table and leave
+    tbl = sheet.tables.add(range, true /* hasHeaders */); await ctx.sync();
+    tblRange=tbl.getRange();
+    await context.sync();
+    
+    if (keepFormats) return true; //just create table and leave
 
     tblRange.clear("Formats");
     resetCustomProperties();
@@ -337,6 +331,8 @@ async function CreateTable(context, keepFormats:boolean=false) : Promise<boolean
     tbl.columns.load();
     tblRange = tbl.getRange();
     await context.sync();
+    
+    AddMessage("Table creation succeeded");
 
     return true;
     
@@ -562,6 +558,7 @@ async function applyJsonConfig(json: any, hideLessRelevants:boolean=false): Prom
   retval = retval && await applyJsonColDefinitions(jsonArray, hideLessRelevants);
   retval = retval && await applyJSONHighlights(jsonArray);
   retval = retval && await applyJSONFilters(jsonArray);
+  AddMessage("JSON Config Applied successfully!");
   return retval;
 }
 
@@ -604,6 +601,16 @@ async function applyJsonColDefinitions(jsonArray:any, hideLessRelevants:boolean=
 
 
         AddMessage(`Column Name: ${element.columnName}`);
+
+        if (element.visible !== undefined && element.visible !== null) {
+          AddMessage(`Visible: ${element.visible}`);
+          if (!element.visible && hideLessRelevants)
+          {
+            tblColRange.columnHidden = true;
+            continue; //optimization: if column is set to become invisible skip remaining formatting
+          }  
+          // await ctx.sync();
+        }
 
         if (element.style !== undefined && element.style !== "") {
           //style must be the first prop to set as it overrides all the below props
@@ -653,14 +660,7 @@ async function applyJsonColDefinitions(jsonArray:any, hideLessRelevants:boolean=
           // await ctx.sync();
         }
 
-        if (element.visible !== undefined && element.visible !== null) {
-          AddMessage(`Visible: ${element.visible}`);
-          if (!element.visible && hideLessRelevants)
-          {
-            tblColRange.columnHidden = true;
-          }  
-          // await ctx.sync();
-        }
+
 
         if (element.autosizeColumn !== undefined && element.autosizeColumn !== null) {
           AddMessage(`autosizeColumn: ${element.autosizeColumn}`);
@@ -704,6 +704,7 @@ async function applyJSONHighlights(jsonArray) : Promise<boolean>
           break;
 
         case enumConditionalFormatType.CellValue:
+          await createConditionalFormatCellValue(e);
           break;
 
         case enumConditionalFormatType.Custom:
@@ -790,6 +791,40 @@ async function createConditionalFormatContainsText(cf:ConditionalFormat): Promis
 
 }
 
+async function createConditionalFormatCellValue(cf:ConditionalFormat): Promise<boolean>
+{
+  AddMessage(`Creating Conditional Format ${cf.FriendlyName}`);
+  var retval:boolean = true;
+  const col:Excel.TableColumn = tbl.columns.getItemOrNullObject(cf.ColumnName);
+
+  col.load(["isNullObject"]); await ctx.sync();
+  if (col.isNullObject) {
+    return false;
+  }
+
+  const r:Excel.Range = col.getDataBodyRange();
+  const excelCF = r.conditionalFormats.add(Excel.ConditionalFormatType.cellValue);
+  excelCF.load(["cellValue", "format", "format/fill", "format/font"]); await ctx.sync();
+  
+  excelCF.cellValue.rule = {
+    formula1: cf.CellValueFormula1,
+    formula2: cf.CellValueFormula2,
+    operator: JsonEnumToCellValueOperator(cf.CellValueOperator)
+  };
+  
+  if(cf.FillColor !== undefined && cf.FillColor !== null && cf.FillColor.toLowerCase() !== "null") {
+    excelCF.cellValue.format.fill.color = cf.FillColor;
+  }
+
+  if(cf.FontColor !== undefined && cf.FontColor !== null && cf.FontColor.toLowerCase() !== "null") {
+    excelCF.cellValue.format.font.color = cf.FontColor;
+  }
+
+  await ctx.sync();
+  return retval;
+}
+
+
 async function createColumnFilter(f:FilterDefinition): Promise<boolean>
 {
     AddMessage(`Creating Filter ${f.FriendlyName}`);
@@ -811,7 +846,7 @@ async function createColumnFilter(f:FilterDefinition): Promise<boolean>
       values: [f.FilterValue]
     });
   await ctx.sync();
-
+  AddMessage(`Filter ${f.FriendlyName} created`);
   return retval;
 
 }
@@ -894,10 +929,15 @@ async function createFiltersFromTable(jsonConfig:JsonConfigUtils): Promise<any>
   for (const column of tbl.columns.items) 
    {
       column.load(["name", "filter"]);await ctx.sync();
+      AddMessage(`Checking for filter on column ${column.name}`);
 
       const filter = column.filter;
-
-      if (filter.criteria != null) {
+      filter.load(["criteria"]); await ctx.sync();
+      
+      const c = filter.criteria;  
+      
+      if (c !== null) 
+      {
         const randomNumber = Math.ceil(Math.random() * 999999);
         const columnName:string = column.name;
         const key:string = columnName + randomNumber.toString();
@@ -945,7 +985,7 @@ async function createConditionalFormatsFromTable(jsonConfig:JsonConfigUtils): Pr
                             column.name, false,false,
                             "Normal", cf.cellValue.format.font.color, cf.cellValue.format.fill.color,
                              cf.cellValue.rule.formula1,cf.cellValue.rule.formula2,
-                             CellValueOperatorToJsonEnum(cf.cellValue.rule.operator));
+                             CellValueOperatorToJsonEnum(cf.cellValue.rule.operator) );
 
               break;
             case Excel.ConditionalFormatType.containsText:
@@ -997,11 +1037,21 @@ async function getJsonData(): Promise<any>
       response = await fetch("./EXOCDLconfig.json");
       break;
 
+    case "kusto-graph":
+      response = await fetch("./KustoGraphdb.json");
+      break;
+
+    case "kusto-entityevent":
+      response = await fetch("./KustoCalendarEntityEvent.json");
+      break;
+
     default:
       response = await fetch("./RaveCDLconfig.json");
       break;
   }
   
+  AddMessage(`Retrieving JSON data for key ${jsonType}`);
+
   const jsonData = await response.json();
   return jsonData;
 }
@@ -1057,7 +1107,7 @@ export async function createConfig()
     await createConditionalFormatsFromTable(jsonConfigUtils);
     await createFiltersFromTable(jsonConfigUtils);
     document.getElementById("jsonConfig").textContent = jsonConfigUtils.getValue();
-
+    AddMessage("JSON config creation successfull!");
   });
   
 }
@@ -1065,18 +1115,52 @@ export async function createConfig()
 
 export async function testJsonFile()
 {
-  myConsole.reset();
-  var tempJson = await getJsonData();
-  document.getElementById("jsonConfig").textContent = JSON.stringify(tempJson);
-  var isTableValid:boolean = await applyJsonConfig(tempJson);
+  await Excel.run(async (context) => {
+      ctx = context;
+      sheet = context.workbook.worksheets.getActiveWorksheet();
+      jsonConfigUtils = new JsonConfigUtils();
+      
+      await ctx.sync() ;
+
+      const validTable:boolean = await  CreateTable(context, true); //keep formatting for json creation
+
+      if (!validTable) {
+        return;
+      }
+      myConsole.reset();
+      document.getElementById("jsonConfig").textContent = ""; 
+      var tempJson = await getJsonData();
+      document.getElementById("jsonConfig").textContent = JSON.stringify(tempJson, null, 2);  
+      const hideCols:boolean = await hideLessRelevants();
+      var isTableValid:boolean = await applyJsonConfig(tempJson, hideCols);
+      
+      AddMessage("Test JSON file succeeded!");
+    });
+
 }
 
 export async function testConfig()
 {
-  myConsole.reset();
-  var textbox:any = document.getElementById("jsonConfig");
-  var tempJson = textbox.value;
-  var isTableValid:boolean = await applyJsonConfig(tempJson);
+  await Excel.run(async (context) => {
+      ctx = context;
+      sheet = context.workbook.worksheets.getActiveWorksheet();
+      jsonConfigUtils = new JsonConfigUtils();
+      
+      await ctx.sync() ;
+
+      const validTable:boolean = await  CreateTable(context, true); //keep formatting for json creation
+
+      if (!validTable) {
+        return;
+      }
+      myConsole.reset();
+      var textbox:any = document.getElementById("jsonConfig");
+      var tempJson = textbox.value;
+      const hideCols:boolean = await hideLessRelevants();
+      var isTableValid:boolean = await applyJsonConfig(tempJson, hideCols);
+      AddMessage("Test JSON configuration succeeded!");
+    });
+
 }
 //#endregion
 
@@ -1122,23 +1206,6 @@ export async function run() {
 
       //format section
       await freezeColumns("Ignorable");
-      // await FormatCells(context).then(()=>{AddMessage("Format cells Done")});
-      // await FormatRawFrom(context).then(()=>{AddMessage("Format raw from Done")});
-      // await FormatDateColumn(context, "ModifiedDate").then(()=>{AddMessage("Format ModifiedDate Done")}); //ModifiedDate
-      // await FormatDateColumn(context, "StartTime").then(()=>{AddMessage("Create StartTime Done")}); //StartTime
-      // await FormatDateColumn(context, "EndTime").then(()=>{AddMessage("Create End Done")}); //EndTime
-
-      //highlight section
-      // await HighlightIgnorable().then(()=>{AddMessage("Highlight Ignorable Done")});
-      // await HighlightApptSequence(context).then(()=>{AddMessage("Highlight  Done")});
-      // await HighlightCRA(context).then(()=>{AddMessage("Highlight CRA Done")});
-      
-      // //await addAnalysisInfo("CRA Found", rowCount, "CRA Events were found, meaning calendar state was not 100%","HighlightCRA",enumTypeAnalysis.Warning);
-      // await HighLightCreates(context).then(()=>{AddMessage("Highlight Create Done")});
-
-      //Filters section
-      //await FilterIgnorable("FALSE").then(()=>{AddMessage("Filter Ignorable Done")});
-
       await context.sync();
       
       await PerformAnalysis(context).then(()=>{AddMessage("Perform Analysis Done")});
@@ -1163,8 +1230,8 @@ export async function run() {
 }
 
 
-function CellValueOperatorToJsonEnum(operator: string): enumCellValueOperator {
-  //throw new Error('Function not implemented.');
-  return enumCellValueOperator.EQ;
-}
+// function CellValueOperatorToJsonEnum(operator: string): enumCellValueOperator {
+//   //throw new Error('Function not implemented.');
+//   return enumCellValueOperator.EQ;
+// }
 
