@@ -30,7 +30,7 @@ export async function tblToJson(ctx:Excel.RequestContext, tbl:Excel.Table) : Pro
 
         // Convert the JSON array to a JSON string
         
-        return JSON.stringify(jsonArray);
+        return JSON.stringify(jsonArray, null, 2);
     } catch (error) {
         console.log(error);
         myConsole.log(error);

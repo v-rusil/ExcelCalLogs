@@ -66,7 +66,9 @@ module.exports = async (env, options) => {
       new CopyWebpackPlugin({
         patterns: [
           { from: 'src/RaveCDLconfig.json', to: 'RaveCDLconfig.json' },
-          { from: 'src/EXOCDLconfig.json', to: 'EXOCDLconfig.json' }
+          { from: 'src/EXOCDLconfig.json', to: 'EXOCDLconfig.json' },
+          { from: 'src/KustoGraphdb.json', to: 'KustoGraphdb.json' },
+          { from: 'src/KustoCalendarEntityEvent.json', to: 'KustoCalendarEntityEvent.json' }          
         ],
       }),
       new HtmlWebpackPlugin({
