@@ -3,11 +3,44 @@
 //generate code below
 
 import { calendarItemTypes, rt, scn } from "./hashTablesCDLTimeline";
+import { timelineDataObject } from "./timelineDataObject";
+import { timelineDataObjectDetail } from "./timelineDataObjectDetail";
 
 export class CDLToEnglishActionsTimeline 
 {
    
     
+    //create property tbl:Excel.Table;
+    private __tbl : Excel.Table;
+    public get _tbl() : Excel.Table {
+        return this.__tbl;
+    }
+    public set _tbl(v : Excel.Table) {
+        this.__tbl = v;
+    }
+
+    
+    private _ctx : Excel.RequestContext;
+    public get ctx() : Excel.RequestContext {
+        return this._ctx;
+    }
+    public set ctx(v : Excel.RequestContext) {
+        this._ctx = v;
+    }
+    
+    
+
+    constructor(tbl: Excel.Table, ctx: Excel.RequestContext) {
+        this._tbl = tbl;
+        this._ctx = ctx;
+    }
+
+    
+    public async processCDLToEnglishActionsTimeline():Promise<timelineDataObject> {
+        let timelineData: timelineDataObject = new timelineDataObject();
+        timelineData.generateDummyData();
+        return timelineData;
+    }
 
 
 
