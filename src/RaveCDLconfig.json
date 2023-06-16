@@ -59,7 +59,7 @@
         {
             "autosizeColumn": false,
             "columnName": "Client",
-            "columnWidth": 139.2,
+            "columnWidth": 130,
             "horizontalAlignment": "Left",
             "indentLevel": 1,
             "isMandatory": true,
