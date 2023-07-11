@@ -29,11 +29,23 @@ export class timelineDataObject
     }
     
     public async generateDummyData(): Promise<timelineDataObject> {
-        this.header.subjec = "Subject: Test Subject";
+        this.header.subject = "Subject: Test Subject";
+        var d = new timelineDataObjectDetail();
+        
+        d.columnName = "Trigger";
+        d.rowIndex = 13;
+        this.details.push(d);
+
+        d = new timelineDataObjectDetail();
+        
+        d.columnName = "LogRow";
+        d.rowIndex = 113;
+        this.details.push(d);
+
         for (let i = 0; i < 10; i++) {
             let detail: timelineDataObjectDetail = new timelineDataObjectDetail();
             detail.columnName = "Column " + i.toString();
-            detail.detail = "Detail " + i.toString();
+            detail.description = "Detail " + i.toString();
             detail.rowIndex = i;
             this.details.push(detail);
         }

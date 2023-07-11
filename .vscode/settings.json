@@ -3,6 +3,8 @@
       "javascript",
       "javascriptreact",
       "typescript"
-    ]
+    ],
+    "appService.defaultWebAppToDeploy": "/subscriptions/01c7d5e3-40f7-4ba3-8bfb-78348f4db7db/resourceGroups/rusilRG/providers/Microsoft.Web/sites/ExcelCalLogs",
+    "appService.deploySubpath": "dist"
   }
   

@@ -3,8 +3,11 @@
  * See LICENSE in the project root for license information.
  */
 
+import { error } from 'jquery';
 import { CellValueOperatorToJsonEnum, ConditionalFormat, JsonEnumToCellValueOperator, enumCellValueOperator, enumConditionalFormatTextOperator, enumConditionalFormatType } from './ConditionalFormats';
 import { FilterDefinition } from './FilterDefinitions';
+import { CDLToEnglishActionsTimeline } from './buildTimeLine/CDLToEnglishActionsTimeline';
+import { timelineDataObject } from './buildTimeLine/timelineDataObject';
 import { ColumnDefinition, EnumColumnHorizontalAlignment, EnumColumnVerticalAlignment } from "./columnDefinitions";
 import { tblToJson } from './excelUtils';
 import { JsonConfigUtils } from './jsonConfigUtils';
@@ -199,12 +202,17 @@ async function addAnalysisInfo(title:string, badge:number, message:string, small
 
   async function freezeColumns(columnName: string)
 {
-    AddMessage(`Freezing upto column ${columnName} (3 hardcoded for now)`);
-    const column = tbl.columns.getItem(columnName);
-    sheet.freezePanes.freezeRows(1);
-    sheet.freezePanes.freezeColumns(3);
-    await ctx.sync();
-    AddMessage(`Columns Frozen successfully`);
+    try {
+      AddMessage(`Freezing upto column ${columnName} (3 hardcoded for now)`);
+      const column = tbl.columns.getItem(columnName);
+      sheet.freezePanes.freezeColumns(column.index);
+      await ctx.sync();
+      AddMessage(`Column ${columnName} Frozen successfully`);
+    }
+    catch (error) {
+      AddMessage(`Error freezing column ${columnName}: ${error}`);
+    }
+  
 }
 //#endregion
 
@@ -581,23 +589,25 @@ async function applyJsonColDefinitions(jsonArray:any, hideLessRelevants:boolean=
 
         tblCol = tbl.columns.getItemOrNullObject(element.columnName);
         tblCol.load(["isNullObject"]);
-        tblColRange = tblCol.getDataBodyRange();
-        tblColRange.load(["format"]);
-        tblColFormat = tblColRange.format;
-        tblColFormat.load(["horizontalAlignment", "verticalAlignment"]);
-        ctx.trackedObjects.add([tblCol, tblColRange]);;
+        ctx.trackedObjects.add([tblCol]);;
         await ctx.sync();
 
         if (tblCol.isNullObject) 
         {
-          if (element.isMandatory !== undefined && element.isMandatory !== "" && element.isMandatory == "false") {
-            AddMessage(`isMandatory: ${element.isMandatory}`);
-            continue;
-          }
           AddMessage(`Column Name does not exist: ${element.columnName}`);
-          addAnalysisInfo("columnName",0,`Column Name does not exist: ${element.columnName}`, "ValidateJSONStruct", enumTypeAnalysis.Danger);
-          return false;
+          if (element.isMandatory !== undefined && element.isMandatory !== "" && element.isMandatory == "true") {
+            AddMessage(`isMandatory: ${element.isMandatory} Continuing to next column...`);
+          }
+          continue;
         }
+
+        tblColRange = tblCol.getDataBodyRange();
+        tblColRange.load(["format"]);
+        tblColFormat = tblColRange.format;
+        tblColFormat.load(["horizontalAlignment", "verticalAlignment"]);
+        ctx.trackedObjects.add([tblColRange]);;
+        await ctx.sync();
+
 
 
         AddMessage(`Column Name: ${element.columnName}`);
@@ -1050,7 +1060,7 @@ async function getJsonData(): Promise<any>
       break;
   }
   
-  AddMessage(`Retrieving JSON data for key ${jsonType}`);
+  AddMessage(`Retrieving JSON data for key ${jsonType} / url=${response.url} /  status=${response.status} / statusText=${response.statusText} / type=${response.type} / ${response.ok} / ${response.redirected} / ${response.body} / ${response.bodyUsed} / ${response.headers} / ${response.trailer} `);
 
   const jsonData = await response.json();
   return jsonData;
@@ -1062,14 +1072,12 @@ async function getJsonData(): Promise<any>
 
 //#region Analysys
 async function PerformAnalysis(context) {
-  //await resetAnalysisInfo();
-  await CheckNumberOfRows();
-  await context.sync();
+  return null;
 }
 
 async function CheckNumberOfRows() {
   
-  if (!CheckNumberOfRows) return; 
+  if (!await CheckNumberOfRows) return; 
 
   const rowCount = await totalTblRows();
   
@@ -1206,16 +1214,26 @@ export async function run() {
 
       //format section
       await freezeColumns("Ignorable");
-      await context.sync();
       
-      await PerformAnalysis(context).then(()=>{AddMessage("Perform Analysis Done")});
+      //await PerformAnalysis(context);
       AddMessage(`Processing done.`);
       
-      AddMessage("Done!");
       showSpinner(false);
       
       const urlCDLVideo:string = "https://msit.microsoftstream.com/video/4221a4ff-0400-9fb2-4805-f1eb0f28f09b";
       addAnalysisInfo("Success", 0,`Process executed successfully, check the video on CDL analysis ${urlCDLVideo} `, "success", enumTypeAnalysis.Success)
+
+
+
+      //Test
+      // const timeline:timelineDataObject = new timelineDataObject();
+      // timeline.generateDummyData();
+      
+      // const cdl:CDLToEnglishActionsTimeline = new CDLToEnglishActionsTimeline(tbl,ctx);
+      // cdl.populateCardPane(timeline);
+      // cdl.processCDLToEnglishActionsTimeline();
+
+
     });
   } 
   catch (error) 

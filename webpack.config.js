@@ -5,7 +5,7 @@ const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://excelcallogs.azurewebsites.net/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -68,7 +68,8 @@ module.exports = async (env, options) => {
           { from: 'src/RaveCDLconfig.json', to: 'RaveCDLconfig.json' },
           { from: 'src/EXOCDLconfig.json', to: 'EXOCDLconfig.json' },
           { from: 'src/KustoGraphdb.json', to: 'KustoGraphdb.json' },
-          { from: 'src/KustoCalendarEntityEvent.json', to: 'KustoCalendarEntityEvent.json' }          
+          { from: 'src/KustoCalendarEntityEvent.json', to: 'KustoCalendarEntityEvent.json' },         
+          { from: 'web.config', to: 'web.config' } 
         ],
       }),
       new HtmlWebpackPlugin({
